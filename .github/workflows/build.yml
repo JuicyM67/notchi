@@ -1,0 +1,56 @@
+name: Bygg Notchi
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift-version
+        run: swift --version
+
+      - name: Bygg och paketera
+        env:
+          NOTCHI_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '0.1.0' }}
+        run: ./scripts/package.sh
+
+      - name: Packa ihop nedladdningen
+        run: |
+          mkdir -p dist/Notchi
+          cp -R build/Notchi.app dist/Notchi/
+          cp scripts/install.sh scripts/uninstall.sh scripts/merge-hooks.js dist/Notchi/
+          cp README.md dist/Notchi/LÄSMIG.md
+          cd dist && ditto -c -k --keepParent Notchi Notchi-macOS.zip
+
+      - name: Ladda upp som bygg-artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notchi-macOS
+          path: dist/Notchi-macOS.zip
+
+      - name: Uppdatera "Senaste bygget" under Releases
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest dist/Notchi-macOS.zip \
+            --title "Senaste bygget" \
+            --notes "Automatiskt byggd från main ($(git rev-parse --short HEAD)). Packa upp och kör install.sh." \
+            --prerelease
+
+      - name: Skapa versionsrelease
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/Notchi-macOS.zip --title "Notchi ${{ github.ref_name }}" --generate-notes
