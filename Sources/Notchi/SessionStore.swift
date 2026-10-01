@@ -104,6 +104,17 @@ final class SessionStore: ObservableObject {
         return order.first { !used.contains($0) } ?? order[sessions.count % order.count]
     }
 
+    /// Du bytte karaktär i menyn: ge pågående sessioner nya karaktärer direkt.
+    /// Den viktigaste (eller senaste) får den du valde, resten nästa ur samma grupp.
+    func reassignSkins() {
+        let family = preferredSkin.isAnimal ? Skin.animals : Skin.gang
+        let others = preferredSkin.isAnimal ? Skin.gang : Skin.animals
+        let order = [preferredSkin] + family.filter { $0 != preferredSkin } + others
+        var ids = sessions.values.sorted { $0.updated > $1.updated }.map(\.id)
+        if let p = primarySession?.id, let i = ids.firstIndex(of: p) { ids.remove(at: i); ids.insert(p, at: 0) }
+        for (i, id) in ids.enumerated() { sessions[id]?.skin = order[i % order.count] }
+    }
+
     /// Den session som är viktigast just nu: den som väntar på dig, annars den som jobbar
     var primarySession: SessionInfo? {
         if let p = pending.first, let s = sessions[p.event.sessionId] { return s }

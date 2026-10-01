@@ -246,6 +246,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         config.skin = sender.representedObject as? String ?? "pim"
         config.save()
         store.config = config
+        store.reassignSkins()
         sender.menu?.items.forEach { if $0.representedObject != nil { $0.state = ($0 === sender) ? .on : .off } }
         store.objectWillChange.send()
         let s = Skin(rawValue: config.skin) ?? .pim
