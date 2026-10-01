@@ -10,7 +10,9 @@ struct SessionInfo: Identifiable {
     let id: String
     var project: String
     var cwd: String
-    var activity: String      // "Tänker…", "Bash npm test", …
+    var activity: String      // detalj: "npm test", "Edit App.swift", …
+    var short: String = ""    // kort: "Tänker…", "Kodar", "Kör kommando", …
+    var lastMessage: String? = nil
     var working: Bool
     var updated: Date
 }
@@ -31,6 +33,7 @@ final class SessionStore: ObservableObject {
     @Published var thinkingLocally = false        // Notchi själv väntar på Claude API
     @Published var justFinished: Date? = nil
     @Published var hovering = false
+    @Published var pinned = false                 // låst öppen (klicka på nålen eller maskoten)
 
     /// Anropas när något ska sägas högt.
     var say: ((String) -> Void)?
@@ -48,7 +51,29 @@ final class SessionStore: ObservableObject {
         return .idle
     }
 
-    var expanded: Bool { hovering || !pending.isEmpty || bubble != nil || listening }
+    var expanded: Bool { hovering || pinned || !pending.isEmpty || bubble != nil || listening }
+
+    /// Kort text som visas bredvid notchen även när den är hopfälld (nil = bara prick)
+    var shortStatus: String? {
+        if listening { return "Lyssnar…" }
+        if !pending.isEmpty { return "Behöver dig" }
+        if speaking { return "Pratar" }
+        if thinkingLocally { return "Tänker…" }
+        if let s = sessions.values.filter({ $0.working }).max(by: { $0.updated < $1.updated }) {
+            return s.short.isEmpty ? "Jobbar" : s.short
+        }
+        if let t = justFinished, Date().timeIntervalSince(t) < 6 { return "Klar!" }
+        return nil
+    }
+
+    /// Sessioner som inte hörts av på länge räknas inte längre som aktiva
+    func expireStale() {
+        let now = Date()
+        for (id, s) in sessions where s.working && now.timeIntervalSince(s.updated) > 15 * 60 {
+            sessions[id]?.working = false
+            sessions[id]?.short = "Tyst"
+        }
+    }
 
     var mostRecentCwd: String? {
         sessions.values.max(by: { $0.updated < $1.updated })?.cwd
@@ -64,13 +89,15 @@ final class SessionStore: ObservableObject {
 
         switch e.name {
         case "SessionStart":
-            s.activity = "Redo"
+            s.activity = ""; s.short = "Redo"
         case "UserPromptSubmit":
-            s.activity = "Tänker…"; s.working = true
+            s.activity = ""; s.short = "Tänker…"; s.working = true
         case "PreToolUse":
-            s.activity = e.toolSummary; s.working = true
+            s.activity = e.toolSummary; s.short = e.shortLabel; s.working = true
+        case "PostToolUse", "PostToolUseFailure":
+            s.short = "Tänker…"; s.working = true
         case "PermissionRequest":
-            s.activity = "Väntar på godkännande"
+            s.activity = e.toolSummary; s.short = "Behöver dig"
             if let reply {
                 let item = PendingPermission(event: e, reply: reply)
                 // Svarade du i terminalen eller avbröts sessionen? Ta bort frågan från notchen.
@@ -83,12 +110,14 @@ final class SessionStore: ObservableObject {
         case "Notification":
             if e.notificationType == "idle_prompt" {
                 s.working = false
-                s.activity = "Väntar på dig"
+                s.short = "Väntar på dig"
                 if config.speakEvents { say?("\(s.project) väntar på dig.") }
             }
         case "Stop":
             s.working = false
-            s.activity = "Klar"
+            s.short = "Klar"
+            s.activity = ""
+            if let m = e.lastAssistantMessage { s.lastMessage = m }
             justFinished = Date()
             if config.speakEvents { say?(Narrator.done(project: s.project)) }
             // Uppdatera vyn igen när "klar"-glädjen har gått över
@@ -121,7 +150,7 @@ final class SessionStore: ObservableObject {
     func statusSummary() -> String {
         if sessions.isEmpty { return "Inga Claude Code-sessioner är igång just nu." }
         let parts = sessions.values.sorted { $0.updated > $1.updated }.prefix(3).map { s in
-            "\(s.project): \(s.working ? s.activity : (s.activity.isEmpty ? "vilar" : s.activity.lowercased()))"
+            "\(s.project): \(s.working ? s.short.lowercased() : (s.short.isEmpty ? "vilar" : s.short.lowercased()))"
         }
         var text = parts.joined(separator: ". ")
         if !pending.isEmpty { text += ". \(pending.count) sak väntar på ditt godkännande." }

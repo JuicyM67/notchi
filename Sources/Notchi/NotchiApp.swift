@@ -16,7 +16,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkey: Hotkey!
     private var statusItem: NSStatusItem!
     private var cancellables = Set<AnyCancellable>()
-    private var lastExpanded = false
 
     private var skin: Skin { Skin(rawValue: config.skin) ?? .pim }
 
@@ -46,7 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Skärmändringar (extern skärm in/ut)
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
                                                object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.relayout(force: true) }
+            MainActor.assumeIsolated { self?.bringToFront() }
         }
         // Byte av skrivbord/helskärmsapp och väckning ur viloläge: se till att vi ligger överst igen
         let ws = NSWorkspace.shared.notificationCenter
@@ -56,62 +55,89 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 MainActor.assumeIsolated { self?.bringToFront() }
             }
         }
-        // Livlina: kolla varannan sekund att fönstret syns och har rätt storlek
+        // Livlina: kolla varannan sekund att fönstret syns
         Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.watchdog() }
+        }
+        // Musen: avgör själva om den är över notchen (20 ggr/s), med små fördröjningar mot fladder
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.trackMouse() }
         }
     }
 
     // MARK: Fönster
 
+    private var hosting: NSHostingView<NotchView>!
+    private var enteredAt: Date?
+    private var leftAt: Date?
+
     private func setupPanel() {
         panel = NotchPanel()
         hosting = NSHostingView(rootView: makeView())
         panel.contentView = hosting
-        relayout(force: true)
+        panel.setFrame(geometry.canvas, display: true)
+        panel.ignoresMouseEvents = true
         panel.orderFrontRegardless()
 
-        // Ändra fönsterstorlek när maskoten fälls ut/in
-        // objectWillChange skickas INNAN värdet ändras, så vänta ett varv innan vi läser av läget
+        // Klick ska bara fångas när notchen är utfälld; annars går de igenom till menyraden.
+        // objectWillChange skickas INNAN värdet ändras, så vänta ett varv innan vi läser av läget.
         store.objectWillChange
             .sink { [weak self] _ in
-                DispatchQueue.main.async { MainActor.assumeIsolated { self?.relayout(force: false) } }
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        let ignore = !self.store.expanded
+                        if self.panel.ignoresMouseEvents != ignore { self.panel.ignoresMouseEvents = ignore }
+                    }
+                }
             }
             .store(in: &cancellables)
     }
-
-    private var hosting: NSHostingView<NotchView>!
 
     private func makeView() -> NotchView {
         NotchView(store: store, voice: voiceState, geometry: geometry, skin: { [weak self] in self?.skin ?? .pim })
     }
 
     private func bringToFront() {
-        relayout(force: true)
+        let g = NotchGeometry.current()
+        if g != geometry {
+            geometry = g
+            hosting?.rootView = makeView()     // ny skärm: rita om med rätt mått
+        }
+        if panel.frame != geometry.canvas { panel.setFrame(geometry.canvas, display: true) }
         panel.orderFrontRegardless()
     }
 
     private func watchdog() {
-        let wanted = geometry.frame(expanded: store.expanded)
-        if !panel.isVisible || !panel.isOnActiveSpace || panel.frame != wanted
-            || NotchGeometry.current().screen != geometry.screen {
+        store.expireStale()
+        if !panel.isVisible || !panel.isOnActiveSpace || panel.frame != geometry.canvas
+            || NotchGeometry.current() != geometry {
             bringToFront()
         }
     }
 
-    private func relayout(force: Bool) {
-        let expanded = store.expanded
-        guard force || expanded != lastExpanded else { return }
-        if force {
-            let g = NotchGeometry.current()
-            if g.screen != geometry.screen || g.notchHeight != geometry.notchHeight || g.notchWidth != geometry.notchWidth {
-                geometry = g
-                hosting?.rootView = makeView()     // ny skärm: rita om med rätt mått
+    private func trackMouse() {
+        let mouse = NSEvent.mouseLocation
+        let now = Date()
+        if !store.hovering {
+            // Öppna när musen vilat på notchen en kort stund
+            let zone = geometry.shapeRect(expanded: false, showsLabel: store.shortStatus != nil).insetBy(dx: -2, dy: -3)
+            if zone.contains(mouse) {
+                if enteredAt == nil { enteredAt = now }
+                if now.timeIntervalSince(enteredAt!) > 0.12 { store.hovering = true; leftAt = nil }
+            } else {
+                enteredAt = nil
+            }
+        } else {
+            // Stäng när musen varit utanför den utfällda ytan en stund
+            let zone = geometry.shapeRect(expanded: true, showsLabel: true).insetBy(dx: -10, dy: -10)
+            if zone.contains(mouse) {
+                leftAt = nil
+            } else {
+                if leftAt == nil { leftAt = now }
+                if now.timeIntervalSince(leftAt!) > 0.4 { store.hovering = false; enteredAt = nil }
             }
         }
-        lastExpanded = expanded
-        let frame = geometry.frame(expanded: expanded)
-        if panel.frame != frame { panel.setFrame(frame, display: true, animate: false) }
     }
 
     // MARK: Meny i menyraden

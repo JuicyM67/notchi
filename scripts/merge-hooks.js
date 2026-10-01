@@ -22,6 +22,7 @@ function run(argv) {
     SessionStart:      { async: true },
     UserPromptSubmit:  { async: true },
     PreToolUse:        { async: true },
+    PostToolUse:       { async: true },
     Notification:      { async: true },
     Stop:              { async: true },
     SessionEnd:        { async: true },

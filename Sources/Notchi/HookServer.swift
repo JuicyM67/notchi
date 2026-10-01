@@ -26,6 +26,28 @@ struct HookEvent {
 
     var projectName: String { (cwd as NSString).lastPathComponent }
 
+    /// Claudes sista svar (skickas med Stop-händelsen)
+    var lastAssistantMessage: String? {
+        guard let m = raw["last_assistant_message"] as? String else { return nil }
+        let t = m.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : String(t.prefix(4000))
+    }
+
+    /// Ett eller två ord om vad verktyget gör, för notchen
+    var shortLabel: String {
+        let t = toolName ?? ""
+        switch t {
+        case "Edit", "Write", "MultiEdit", "NotebookEdit": return "Kodar"
+        case "Bash", "PowerShell": return "Kör kommando"
+        case "Read", "Grep", "Glob", "LS": return "Läser"
+        case "WebSearch", "WebFetch": return "Söker"
+        case "Task", "Agent": return "Delegerar"
+        case "TodoWrite", "TaskCreate", "TaskUpdate", "ExitPlanMode": return "Planerar"
+        case "AskUserQuestion": return "Har en fråga"
+        default: return t.hasPrefix("mcp__") ? "Använder verktyg" : "Jobbar"
+        }
+    }
+
     /// Kort, läsbar beskrivning av vad verktyget ska göra.
     var toolSummary: String {
         switch toolName ?? "" {
