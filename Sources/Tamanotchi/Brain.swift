@@ -17,7 +17,7 @@ actor Brain {
 
     private var systemPrompt: String {
         """
-        Du är Notchi, en liten glad maskot som bor i notchen på användarens Mac och håller koll på Claude Code.
+        Du är Tamanotchi, en liten glad maskot som bor i notchen på användarens Mac och håller koll på Claude Code.
         Du svarar alltid på svenska, muntligt: 1–3 korta meningar, ingen markdown, inga listor, inga länkar, inga emojis.
         Siffror och förkortningar skrivs så att de låter bra uppläst.
         Använd verktygen för att öppna mappar, hitta filer, starta program, köra genvägar
@@ -55,7 +55,7 @@ actor Brain {
     /// `onProgress` används för korta mellanbesked ("Jag söker…").
     func ask(_ question: String, onProgress: @escaping @Sendable (String) async -> Void) async -> String {
         guard let key = config.resolvedAnthropicKey else {
-            return "Jag saknar en API-nyckel. Lägg in den i punkt notchi slash config punkt json."
+            return "Jag saknar en API-nyckel. Lägg in den i punkt tamanotchi slash config punkt json."
         }
         var messages = Array(history.suffix(config.historyTurns))
         // Historiken måste börja med ett användarmeddelande

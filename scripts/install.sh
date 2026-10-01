@@ -1,48 +1,57 @@
 #!/bin/bash
-# Installerar Notchi.
-#  • Laddade du ner en färdig release (Notchi.app ligger bredvid det här skriptet)? Då behövs inga utvecklarverktyg.
+# Installerar Tamanotchi.
+#  • Laddade du ner en färdig release (Tamanotchi.app ligger bredvid det här skriptet)? Då behövs inga utvecklarverktyg.
 #  • Kör du från källkoden bygger skriptet först (kräver Command Line Tools: xcode-select --install).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
-if [ -d "$HERE/Notchi.app" ]; then
-  APP="$HERE/Notchi.app"                       # färdig release
-elif [ -d "$HERE/../build/Notchi.app" ] && [ "${1:-}" != "--rebuild" ]; then
-  APP="$HERE/../build/Notchi.app"
+if [ -d "$HERE/Tamanotchi.app" ]; then
+  APP="$HERE/Tamanotchi.app"                       # färdig release
+elif [ -d "$HERE/../build/Tamanotchi.app" ] && [ "${1:-}" != "--rebuild" ]; then
+  APP="$HERE/../build/Tamanotchi.app"
 else
   "$HERE/package.sh"
-  APP="$HERE/../build/Notchi.app"
+  APP="$HERE/../build/Tamanotchi.app"
 fi
 
-echo "▸ Lägger Notchi i ~/Applications…"
+# Flytta över från det gamla namnet (Notchi): inställningar, användning, tidigare statusrad
+if [ -d "$HOME/.notchi" ] && [ ! -d "$HOME/.tamanotchi" ]; then
+  echo "▸ Flyttar dina inställningar från Notchi…"
+  mv "$HOME/.notchi" "$HOME/.tamanotchi"
+  rm -f "$HOME/.tamanotchi/notchi.sock"
+fi
 pkill -x Notchi 2>/dev/null || true
-mkdir -p "$HOME/Applications"
 rm -rf "$HOME/Applications/Notchi.app"
-cp -R "$APP" "$HOME/Applications/Notchi.app"
+
+echo "▸ Lägger Tamanotchi i ~/Applications…"
+pkill -x Tamanotchi 2>/dev/null || true
+mkdir -p "$HOME/Applications"
+rm -rf "$HOME/Applications/Tamanotchi.app"
+cp -R "$APP" "$HOME/Applications/Tamanotchi.app"
 # Nedladdade appar märks av Gatekeeper; ta bort märket och signera lokalt
-xattr -dr com.apple.quarantine "$HOME/Applications/Notchi.app" 2>/dev/null || true
-codesign --force --deep --sign - "$HOME/Applications/Notchi.app" 2>/dev/null || true
+xattr -dr com.apple.quarantine "$HOME/Applications/Tamanotchi.app" 2>/dev/null || true
+codesign --force --deep --sign - "$HOME/Applications/Tamanotchi.app" 2>/dev/null || true
 
 echo "▸ Installerar hooken…"
-mkdir -p "$HOME/.notchi/bin"
-cp "$HOME/Applications/Notchi.app/Contents/MacOS/notchi-hook" "$HOME/.notchi/bin/notchi-hook"
-chmod +x "$HOME/.notchi/bin/notchi-hook"
+mkdir -p "$HOME/.tamanotchi/bin"
+cp "$HOME/Applications/Tamanotchi.app/Contents/MacOS/tamanotchi-hook" "$HOME/.tamanotchi/bin/tamanotchi-hook"
+chmod +x "$HOME/.tamanotchi/bin/tamanotchi-hook"
 
 echo "▸ Kopplar in hooks i ~/.claude/settings.json (säkerhetskopia sparas)…"
 mkdir -p "$HOME/.claude"
 SETTINGS="$HOME/.claude/settings.json"
-[ -f "$SETTINGS" ] && cp "$SETTINGS" "$SETTINGS.notchi-backup-$(date +%Y%m%d%H%M%S)"
-/usr/bin/osascript -l JavaScript "$HERE/merge-hooks.js" install "$SETTINGS" "$HOME/.notchi/bin/notchi-hook" "$HOME/.notchi/prev-statusline.txt"
+[ -f "$SETTINGS" ] && cp "$SETTINGS" "$SETTINGS.tamanotchi-backup-$(date +%Y%m%d%H%M%S)"
+/usr/bin/osascript -l JavaScript "$HERE/merge-hooks.js" install "$SETTINGS" "$HOME/.tamanotchi/bin/tamanotchi-hook" "$HOME/.tamanotchi/prev-statusline.txt"
 
-echo "▸ Startar Notchi…"
-open "$HOME/Applications/Notchi.app"
+echo "▸ Startar Tamanotchi…"
+open "$HOME/Applications/Tamanotchi.app"
 
 cat <<'DONE'
 
 ✓ Klart!
   • Maskoten sitter nu i notchen. Välj karaktär via ●-ikonen i menyraden.
   • Håll ⌃⌥ Mellanslag och prata.
-  • Lägg in din Anthropic API-nyckel i ~/.notchi/config.json för att kunna ställa frågor
-    (öppna/starta/hitta fungerar gratis utan nyckel). Starta om Notchi efteråt.
+  • Lägg in din Anthropic API-nyckel i ~/.tamanotchi/config.json för att kunna ställa frågor
+    (öppna/starta/hitta fungerar gratis utan nyckel). Starta om Tamanotchi efteråt.
   • Nya Claude Code-sessioner plockar upp hooken automatiskt.
 DONE

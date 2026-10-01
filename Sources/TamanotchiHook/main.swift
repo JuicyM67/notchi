@@ -1,13 +1,13 @@
 import Foundation
 import Darwin
 
-// notchi-hook: körs av Claude Code vid varje hook-händelse.
-// Läser händelsen (JSON) från stdin och skickar den till Notchi-appen via en Unix-socket.
+// tamanotchi-hook: körs av Claude Code vid varje hook-händelse.
+// Läser händelsen (JSON) från stdin och skickar den till Tamanotchi-appen via en Unix-socket.
 // För PermissionRequest väntar den på svar (Tillåt/Neka) och skriver det till stdout.
 // Om appen inte är igång avslutar den tyst, så att Claude Code fungerar precis som vanligt.
 
 // Läge 2: --statusline. Claude Code kör statusraden ofta och skickar med användningen
-// (rate_limits). Vi vidarebefordrar den till Notchi och kör sedan din gamla statusrad, om du hade en.
+// (rate_limits). Vi vidarebefordrar den till Tamanotchi och kör sedan din gamla statusrad, om du hade en.
 
 let isStatusLine = CommandLine.arguments.contains("--statusline")
 let input = FileHandle.standardInput.readDataToEndOfFile()
@@ -41,18 +41,18 @@ func hostApp() -> String? {
     }
     return nil
 }
-// Uppdrag som Notchi själv skickat till Claude Code märks, så att appen kan visa dem som "Notchi"
-if ProcessInfo.processInfo.environment["NOTCHI_AGENT"] == "1" { json["notchi_agent"] = true }
+// Uppdrag som Tamanotchi själv skickat till Claude Code märks, så att appen kan visa dem som "Tamanotchi"
+if ProcessInfo.processInfo.environment["TAMANOTCHI_AGENT"] == "1" { json["tamanotchi_agent"] = true }
 if !isStatusLine, ["SessionStart", "UserPromptSubmit", "PermissionRequest"].contains(json["hook_event_name"] as? String ?? ""),
    let app = hostApp() {
-    json["notchi_app"] = app
+    json["tamanotchi_app"] = app
 }
 let event = json["hook_event_name"] as? String ?? ""
 let waitForReply = event == "PermissionRequest"
 
 /// Kör din tidigare statusrad med samma indata, eller skriv en enkel egen
 func finishStatusLine() -> Never {
-    let prevFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".notchi/prev-statusline.txt")
+    let prevFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".tamanotchi/prev-statusline.txt")
     if let prev = try? String(contentsOf: prevFile, encoding: .utf8),
        !prev.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         let p = Process()
@@ -82,7 +82,7 @@ func finishStatusLine() -> Never {
     exit(0)
 }
 
-let path = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".notchi/notchi.sock").path
+let path = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".tamanotchi/tamanotchi.sock").path
 let fd = socket(AF_UNIX, SOCK_STREAM, 0)
 guard fd >= 0 else { if isStatusLine { finishStatusLine() }; exit(0) }
 

@@ -1,13 +1,13 @@
 import Foundation
 
-/// Inställningar läses från ~/.notchi/config.json (skapas med standardvärden första gången).
+/// Inställningar läses från ~/.tamanotchi/config.json (skapas med standardvärden första gången).
 /// Allt är inställt för lägsta möjliga kostnad som standard:
 ///  - röst: macOS inbyggda talsyntes (gratis, lokalt)
 ///  - taligenkänning: Apples, på enheten när det stöds (gratis)
 ///  - enkla kommandon (öppna/starta/hitta/godkänn) hanteras lokalt utan API-anrop
 ///  - frågor går till Claude Haiku med korta svar och högst 1 webbsökning
 struct Config: Codable {
-    /// Vem som tar hand om det Notchi inte klarar själv:
+    /// Vem som tar hand om det Tamanotchi inte klarar själv:
     /// "claudeCode" = Claude Code med ditt abonnemang (ingen API-nyckel), "api" = Claude API med nyckel
     var brain: String = "claudeCode"
     var agentModel: String = "haiku"     // modell för Claude Code-uppdrag (haiku drar minst av din kvot)
@@ -32,13 +32,13 @@ struct Config: Codable {
     var eventStyle: String = "sounds"
     var voiceApprovals: Bool = true      // tillåt "ja"/"nej" med rösten (känsliga kommandon kräver alltid klick)
     var language: String = "sv-SE"
-    /// "Hej Notchi": AV som standard (mikrofonen är på hela tiden när det används). Slås på i menyn.
+    /// "Hej Tamanotchi": AV som standard (mikrofonen är på hela tiden när det används). Slås på i menyn.
     var wakeWordOptIn: Bool = false
     var usagePolling: Bool = true        // hämta användning var 5:e min (fungerar även i appen och VS Code)
 
-    static let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".notchi")
+    static let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".tamanotchi")
     static let file = dir.appendingPathComponent("config.json")
-    static let socketPath = dir.appendingPathComponent("notchi.sock").path
+    static let socketPath = dir.appendingPathComponent("tamanotchi.sock").path
 
     static func load() -> Config {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

@@ -1,24 +1,24 @@
 <p align="center">
-  <img src="brand/notchi-lockup.png" alt="Notchi" width="420">
+  <img src="brand/tamanotchi-lockup.png" alt="Tamanotchi" width="520">
 </p>
 
-# Notchi – varumärkesplattform
+# Tamanotchi – varumärkesplattform
 
 > **Din lilla kollega i notchen.**
 
-Det här dokumentet samlar vad Notchi är, hur den låter och hur den ser ut.
+Det här dokumentet samlar vad Tamanotchi är, hur den låter och hur den ser ut.
 Använd det när du skriver texter i appen, gör en webbsida, en presentation eller nya karaktärer.
 
 ---
 
 ## 1. Kärnan
 
-**Vad är Notchi?**
+**Vad är Tamanotchi?**
 En liten maskot som bor i MacBookens notch. Den håller koll på Claude Code åt dig, säger till när
 något behöver ditt godkännande och hjälper till med små vardagssaker – med rösten.
 
 **Varför finns den?**
-AI-agenter jobbar i bakgrunden, och det är lätt att missa när de väntar på dig. Notchi gör
+AI-agenter jobbar i bakgrunden, och det är lätt att missa när de väntar på dig. Tamanotchi gör
 det synligt utan att störa: en blick upp mot notchen räcker.
 
 **Löftet**
@@ -33,7 +33,7 @@ Du ska aldrig behöva leta efter terminalen för att veta vad som händer.
 | **Kortfattad** | En mening räcker oftast | Kall eller byråkratisk |
 
 **Positionering**
-Andra notch-appar är paneler och knappar. Notchi är en karaktär – en kollega som pratar,
+Andra notch-appar är paneler och knappar. Tamanotchi är en karaktär – en kollega som pratar,
 inte en instrumentpanel. Den är gjord på svenska, för svenska användare, och kostar nästan
 ingenting att använda.
 
@@ -41,16 +41,17 @@ ingenting att använda.
 
 ## 2. Namnet
 
-- Skrivs **Notchi** i löptext, med stor bokstav. Ordmärket skrivs med gemener: `notchi`.
-- Uttalas *nått-schi*.
+- Skrivs **Tamanotchi** i löptext, med stor bokstav. Ordmärket skrivs med gemener: `tamanotchi`.
+- Uttalas *tama-nått-schi*. Smeknamn i tal: *Tama*.
+- Hette tidigare *Notchi*; namnet byttes eftersom det redan användes.
 - Karaktärerna heter **Pim, Oda, Bo och Kix**. Tillsammans kallas de *gänget*.
-- Skriv inte "NOTCHI", "Notchi-appen" i rubriker eller "notchi" i löptext.
+- Skriv inte "TAMANOTCHI", "Tamanotchi-appen" i rubriker eller "tamanotchi" i löptext.
 
 ---
 
-## 3. Tonalitet (så pratar Notchi)
+## 3. Tonalitet (så pratar Tamanotchi)
 
-Notchi pratar som en trevlig kollega som sitter bredvid dig: rakt, vänligt och kort.
+Tamanotchi pratar som en trevlig kollega som sitter bredvid dig: rakt, vänligt och kort.
 
 **Regler**
 1. **Max tre korta meningar.** Det mesta ska gå att säga på en andning.
@@ -77,20 +78,20 @@ Notchi pratar som en trevlig kollega som sitter bredvid dig: rakt, vänligt och 
 
 | Fil | Användning |
 |---|---|
-| `brand/notchi-lockup.svg` / `.png` | Standard: symbol + ordmärke på ljus bakgrund |
-| `brand/notchi-lockup-white.svg` / `.png` | På mörk bakgrund |
-| `brand/notchi-mark.svg` / `.png` | Bara symbolen – avatarer, favicon, små ytor |
-| `brand/notchi-wordmark.svg` / `-white.svg` | Bara ordmärket |
-| `brand/notchi-app-icon.svg` / `-1024.png` / `AppIcon.icns` | Appikon |
+| `brand/tamanotchi-lockup.svg` / `.png` | Standard: symbol + ordmärke på ljus bakgrund |
+| `brand/tamanotchi-lockup-white.svg` / `.png` | På mörk bakgrund |
+| `brand/tamanotchi-mark.svg` / `.png` | Bara symbolen – avatarer, favicon, små ytor |
+| `brand/tamanotchi-wordmark.svg` / `-white.svg` | Bara ordmärket |
+| `brand/tamanotchi-app-icon.svg` / `-1024.png` / `AppIcon.icns` | Appikon |
 
 **Symbolen**: Pim som tittar fram under en notch. Den visar hela idén på en bild – någon bor där uppe.
 
-**Ordmärket**: `notchi` i Fredoka SemiBold, där pricken över i:et är en mintgrön punkt – samma
+**Ordmärket**: `tamanotchi` i Fredoka SemiBold, där pricken över i:et är en mintgrön punkt – samma
 statuslampa som lyser i notchen.
 
 **Gör så här**
 - Ge logotypen luft: minst lika mycket fritt utrymme som notchens höjd runt om.
-- Minsta bredd: 96 px för lockupen, 20 px för symbolen.
+- Minsta bredd: 140 px för lockupen, 20 px för symbolen.
 - Använd den vita varianten på mörka och färgstarka bakgrunder.
 
 **Gör inte så här**
@@ -156,7 +157,7 @@ Båda typsnitten är gratis (Google Fonts, OFL-licens).
 
 ## 7. Karaktärerna
 
-Alla fyra ritas med kod (`Sources/Notchi/Mascot.swift`) och delar samma byggstenar:
+Alla fyra ritas med kod (`Sources/Tamanotchi/Mascot.swift`) och delar samma byggstenar:
 rundad kropp med färgövergång, glansfläck uppe till vänster, mörka ögon med vit
 ljusprick, rosa kinder och en liten mun.
 
@@ -198,7 +199,7 @@ Undvik djur, kläder och tillbehör som hattar – gänget är former, inte figu
 
 - Svensk röst, ljus och vänlig (tonhöjd något över normal).
 - Standard: bästa installerade svenska systemröst (rekommenderad: Alva, Premium).
-- Talet ska vara kort nog att inte avbryta – Notchi tystnar direkt när du börjar prata.
+- Talet ska vara kort nog att inte avbryta – Tamanotchi tystnar direkt när du börjar prata.
 
 ---
 
@@ -206,5 +207,5 @@ Undvik djur, kläder och tillbehör som hattar – gänget är former, inte figu
 
 - **Din lilla kollega i notchen.** (huvudtagline)
 - Håller koll, så att du slipper.
-- Claude jobbar. Notchi säger till.
+- Claude jobbar. Tamanotchi säger till.
 - En blick upp räcker.

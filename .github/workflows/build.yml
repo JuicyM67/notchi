@@ -1,4 +1,4 @@
-name: Bygg Notchi
+name: Bygg Tamanotchi
 
 on:
   push:
@@ -15,7 +15,7 @@ permissions:
 # Ett bygge i taget: annars kan två byggen tävla om releasen "latest"
 # och lämna den som ett opublicerat utkast (då ger nedladdningslänken 404)
 concurrency:
-  group: notchi-release
+  group: tamanotchi-release
   cancel-in-progress: false
 
 jobs:
@@ -29,22 +29,24 @@ jobs:
 
       - name: Bygg och paketera
         env:
-          NOTCHI_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '0.1.0' }}
+          TAMANOTCHI_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '0.1.0' }}
         run: ./scripts/package.sh
 
       - name: Packa ihop nedladdningen
         run: |
-          mkdir -p dist/Notchi
-          cp -R build/Notchi.app dist/Notchi/
-          cp scripts/install.sh scripts/uninstall.sh scripts/merge-hooks.js dist/Notchi/
-          cp README.md dist/Notchi/LÄSMIG.md
-          cd dist && ditto -c -k --keepParent Notchi Notchi-macOS.zip
+          mkdir -p dist/Tamanotchi
+          cp -R build/Tamanotchi.app dist/Tamanotchi/
+          cp scripts/install.sh scripts/uninstall.sh scripts/merge-hooks.js dist/Tamanotchi/
+          cp README.md dist/Tamanotchi/LÄSMIG.md
+          cd dist && ditto -c -k --keepParent Tamanotchi Tamanotchi-macOS.zip
+          # Samma fil under det gamla namnet, så att gamla uppdateringsraden fortsätter fungera
+          cp -R Tamanotchi Notchi && ditto -c -k --keepParent Notchi Notchi-macOS.zip
 
       - name: Ladda upp som bygg-artefakt
         uses: actions/upload-artifact@v5
         with:
-          name: Notchi-macOS
-          path: dist/Notchi-macOS.zip
+          name: Tamanotchi-macOS
+          path: dist/Tamanotchi-macOS.zip
 
       - name: Uppdatera "Senaste bygget" under Releases
         if: github.ref == 'refs/heads/main'
@@ -56,18 +58,18 @@ jobs:
             # Finns redan (även som utkast): flytta taggen, byt fil, se till att den är publicerad
             git tag -f latest "$GITHUB_SHA"
             git push -f origin refs/tags/latest
-            gh release upload latest dist/Notchi-macOS.zip --clobber
+            gh release upload latest dist/Tamanotchi-macOS.zip dist/Notchi-macOS.zip --clobber
             gh release edit latest --draft=false --prerelease --title "Senaste bygget" --notes "$NOTES" --tag latest
           else
-            gh release create latest dist/Notchi-macOS.zip --target "$GITHUB_SHA" \
+            gh release create latest dist/Tamanotchi-macOS.zip dist/Notchi-macOS.zip --target "$GITHUB_SHA" \
               --title "Senaste bygget" --notes "$NOTES" --prerelease
           fi
           # Kontrollera att nedladdningen faktiskt fungerar
           sleep 5
-          curl -fsSL -o /dev/null "https://github.com/${{ github.repository }}/releases/download/latest/Notchi-macOS.zip"
+          curl -fsSL -o /dev/null "https://github.com/${{ github.repository }}/releases/download/latest/Tamanotchi-macOS.zip"
 
       - name: Skapa versionsrelease
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" dist/Notchi-macOS.zip --title "Notchi ${{ github.ref_name }}" --generate-notes
+        run: gh release create "${{ github.ref_name }}" dist/Tamanotchi-macOS.zip --title "Tamanotchi ${{ github.ref_name }}" --generate-notes

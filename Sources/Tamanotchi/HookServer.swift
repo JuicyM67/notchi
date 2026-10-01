@@ -131,7 +131,7 @@ final class HookReply {
     func allow() {
         send(#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}"#)
     }
-    func deny(_ message: String = "Nekat från Notchi") {
+    func deny(_ message: String = "Nekat från Tamanotchi") {
         let payload: [String: Any] = ["hookSpecificOutput": [
             "hookEventName": "PermissionRequest",
             "decision": ["behavior": "deny", "message": message]]]
@@ -142,11 +142,11 @@ final class HookReply {
     deinit { watcher?.cancel(); if fd >= 0 { close(fd) } }
 }
 
-/// Lyssnar på en Unix-socket som notchi-hook skriver till.
+/// Lyssnar på en Unix-socket som tamanotchi-hook skriver till.
 final class HookServer {
     private let path: String
     private var listenFD: Int32 = -1
-    private let queue = DispatchQueue(label: "notchi.hookserver")
+    private let queue = DispatchQueue(label: "tamanotchi.hookserver")
     var onEvent: (@MainActor (HookEvent, HookReply?) -> Void)?
 
     init(path: String) { self.path = path }

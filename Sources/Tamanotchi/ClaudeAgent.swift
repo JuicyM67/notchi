@@ -1,7 +1,7 @@
 import Foundation
 import AppKit
 
-/// Notchis "händer": låter Claude Code utföra uppgifter på datorn.
+/// Tamanotchis "händer": låter Claude Code utföra uppgifter på datorn.
 ///
 /// Ingen API-nyckel behövs – det körs med `claude -p` och ditt vanliga Claude-abonnemang.
 /// Claude Code får bara använda en kort lista med verktyg (öppna appar och filer, AppleScript,
@@ -43,7 +43,7 @@ enum ClaudeAgent {
         return Context(frontApp: name, here: home + "/Desktop", hereReason: "skrivbordet (ingen mapp var öppen)", recentProject: recentProject)
     }
 
-    /// Mappen i Finders främsta fönster. Första gången frågar macOS om Notchi får styra Finder.
+    /// Mappen i Finders främsta fönster. Första gången frågar macOS om Tamanotchi får styra Finder.
     static func finderFrontFolder() -> String? {
         let script = """
         tell application "Finder"
@@ -57,7 +57,7 @@ enum ClaudeAgent {
 
     static func systemPrompt(_ c: Context) -> String {
         """
-        Du är Notchis händer på användarens Mac (macOS). Användaren pratar med dig via röst, på svenska.
+        Du är Tamanotchis händer på användarens Mac (macOS). Användaren pratar med dig via röst, på svenska.
         Utför uppgiften direkt med dina verktyg: `open -a App`, `open <fil/url>`, `osascript -e '…'` (AppleScript),
         `mkdir -p`, `mdfind`, `code <mapp>`, `shortcuts run <namn>`.
         Ställ inga följdfrågor – gör det mest rimliga tolkningen. Om ett namn är otydligt (taligenkänning), gissa förnuftigt.
@@ -83,12 +83,12 @@ enum ClaudeAgent {
         args += allowedTools
         let script = """
         export PATH="$HOME/.local/bin:$HOME/.claude/local:/opt/homebrew/bin:/usr/local/bin:$PATH"
-        export NOTCHI_AGENT=1
+        export TAMANOTCHI_AGENT=1
         cd "$1" 2>/dev/null || cd "$HOME"
         shift
         exec claude "$@"
         """
-        let out = LocalTools.run("/bin/zsh", ["-lc", script, "notchi", c.here] + args, timeout: 180)
+        let out = LocalTools.run("/bin/zsh", ["-lc", script, "tamanotchi", c.here] + args, timeout: 180)
         let text = out.trimmingCharacters(in: .whitespacesAndNewlines)
         if text.isEmpty { return "Det gick inte. Är Claude Code installerat och inloggat?" }
         // Bara sista stycket läses upp (själva sammanfattningen)

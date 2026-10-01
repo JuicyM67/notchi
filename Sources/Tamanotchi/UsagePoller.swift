@@ -9,7 +9,7 @@ import Foundation
 /// fortsätter som förut.
 ///
 /// Snällt mot servern: var 5:e minut, och 15 minuters paus om servern säger "för många".
-/// Stängs av med "usagePolling": false i ~/.notchi/config.json.
+/// Stängs av med "usagePolling": false i ~/.tamanotchi/config.json.
 actor UsagePoller {
     private var backoffUntil: Date?
     private var lastFailure: String?
@@ -25,7 +25,7 @@ actor UsagePoller {
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
-        req.setValue("notchi/0.1", forHTTPHeaderField: "User-Agent")
+        req.setValue("tamanotchi/0.1", forHTTPHeaderField: "User-Agent")
 
         guard let (data, resp) = try? await URLSession.shared.data(for: req),
               let http = resp as? HTTPURLResponse else { return nil }

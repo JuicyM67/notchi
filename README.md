@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="brand/notchi-lockup.png" alt="Notchi" width="420"><br>
+  <img src="brand/tamanotchi-lockup.png" alt="Tamanotchi" width="520"><br>
   <b>Din lilla kollega i notchen.</b>
 </p>
 
@@ -11,13 +11,13 @@ Varumärke, färger, typsnitt och tonalitet: se [BRAND.md](BRAND.md).
 
 ## Installera (inga utvecklarverktyg behövs)
 
-1. Gå till **Releases** i repot och ladda ner `Notchi-macOS.zip` från *Senaste bygget*.
-2. Dubbelklicka på zip-filen så att mappen `Notchi` packas upp.
+1. Gå till **Releases** i repot och ladda ner `Tamanotchi-macOS.zip` från *Senaste bygget*.
+2. Dubbelklicka på zip-filen så att mappen `Tamanotchi` packas upp.
 3. Öppna Terminal, dra in `install.sh` från mappen och tryck Enter.
 
 GitHub bygger appen automatiskt på en Mac i molnet varje gång koden ändras.
 
-Skriptet lägger appen i `~/Applications`, installerar hooken i `~/.notchi/bin`
+Skriptet lägger appen i `~/Applications`, installerar hooken i `~/.tamanotchi/bin`
 och kopplar in den i `~/.claude/settings.json` (en säkerhetskopia sparas bredvid).
 Dina befintliga hooks lämnas orörda.
 
@@ -40,7 +40,7 @@ Första gången frågar macOS om mikrofon och taligenkänning – svara ja.
 | Skicka tillbaka till terminalen | Klicka **Terminal** |
 | Prata | Håll **⌃⌥ Mellanslag**, prata, släpp |
 | Byta karaktär | ●-ikonen i menyraden → välj Pim, Oda, Bo eller Kix |
-| Väcka med rösten | Slå på *Lyssna efter ”Hej Notchi”* i menyn (av som standard, mikrofonen är då alltid på). Säg sedan ”Hej Notchi, vad gör Claude?” |
+| Väcka med rösten | Slå på *Lyssna efter ”Hej Tamanotchi”* i menyn (av som standard, mikrofonen är då alltid på). Säg sedan ”Hej Tamanotchi, vad gör Claude?” |
 | Styra datorn | ”Spela musik”, ”pausa”, ”nästa låt”, ”öppna Spotify och spela musik” (lokalt, direkt). Allt annat, t.ex. ”öppna VS Code och skapa en mapp här som heter kundportal”, utför Claude Code med ditt abonnemang – ingen API-nyckel |
 | Välja hur händelser hörs | Menyn → *När något händer*: Systemljud (standard), Röst eller Tyst |
 | Hoppa till en session | Klicka på sessionen i utfälld vy: rätt app öppnas, i VS Code rätt projektfönster |
@@ -72,7 +72,7 @@ Humöret följer dagen:
 | Stolt | fyra klara uppgifter på 90 minuter | gnistor runt huvudet, stort leende |
 | Stressad | 90 % av 5-timmarsgränsen eller 95 % av veckan | svettdroppe, rör sig fortare |
 
-Notchi säger också till vid 80 % och 100 % av 5-timmarsgränsen (och 90/100 % av veckan),
+Tamanotchi säger också till vid 80 % och 100 % av 5-timmarsgränsen (och 90/100 % av veckan),
 en gång per period.
 
 ## Kostnad – så hålls den nere
@@ -93,10 +93,10 @@ Tips för ännu lägre kostnad:
 - Sätt `"webSearch": false` i config om du inte behöver aktuell info.
 - Sänk `"historyTurns"` till 2.
 - Ladda ner en bättre gratisröst: *Systeminställningar → Hjälpmedel → Talat innehåll →
-  Systemröst → Hantera röster → Svenska* (t.ex. Alva, Premium/Förbättrad). Notchi väljer
+  Systemröst → Hantera röster → Svenska* (t.ex. Alva, Premium/Förbättrad). Tamanotchi väljer
   automatiskt den bästa svenska rösten som finns.
 
-## Inställningar (`~/.notchi/config.json`)
+## Inställningar (`~/.tamanotchi/config.json`)
 
 ```json
 {
@@ -119,23 +119,23 @@ Tips för ännu lägre kostnad:
 ```
 
 Du kan också låta bli att skriva nyckeln i filen och sätta `ANTHROPIC_API_KEY` i miljön.
-Filen skyddas så att bara ditt användarkonto kan läsa den. Starta om Notchi efter ändringar.
+Filen skyddas så att bara ditt användarkonto kan läsa den. Starta om Tamanotchi efter ändringar.
 
 Vill du ha en riktigt snygg röst senare: sätt `"voice": "elevenlabs"` plus nyckel och röst-id.
-Om ElevenLabs inte svarar faller Notchi tillbaka på gratisrösten.
+Om ElevenLabs inte svarar faller Tamanotchi tillbaka på gratisrösten.
 
 ## Säkerhet
 
-- Socketen `~/.notchi/notchi.sock` kan bara användas av ditt konto.
+- Socketen `~/.tamanotchi/tamanotchi.sock` kan bara användas av ditt konto.
 - Röstgodkännande fungerar bara för ofarliga saker. Kommandon med t.ex. `rm`, `sudo`,
   `git push`, `curl … | sh` kräver alltid ett klick.
-- Om Notchi inte är igång gör hooken ingenting och Claude Code frågar som vanligt i terminalen.
+- Om Tamanotchi inte är igång gör hooken ingenting och Claude Code frågar som vanligt i terminalen.
 - Svarar du inte inom ~10 minuter går frågan tillbaka till terminalen.
 
 ## Hur det hänger ihop
 
 ```
-Claude Code ──hook (stdin JSON)──▶ notchi-hook ──Unix-socket──▶ Notchi.app
+Claude Code ──hook (stdin JSON)──▶ tamanotchi-hook ──Unix-socket──▶ Tamanotchi.app
                                         ▲                          │
                  Tillåt/Neka (stdout) ◀─┘◀────── svar (bara vid ────┘
                                                  PermissionRequest)
@@ -148,18 +148,18 @@ Du (⌃⌥ Mellanslag) ─▶ Taligenkänning ─▶ Lokal tolk ─┬─▶ öp
 
 | Fil | Innehåll |
 |---|---|
-| `Sources/Notchi/NotchiApp.swift` | Start, meny, snabbtangent, kopplar ihop allt |
-| `Sources/Notchi/NotchWindow.swift` | Fönstret runt notchen, utfälld vy, knappar |
-| `Sources/Notchi/Mascot.swift` | De fyra karaktärerna + animation per tillstånd |
-| `Sources/Notchi/SessionStore.swift` | Tillstånd, sessioner, godkännanden, färdiga fraser |
-| `Sources/Notchi/HookServer.swift` | Socket-servern och hook-händelser |
-| `Sources/Notchi/IntentRouter.swift` | Lokal tolkning av svenska kommandon |
-| `Sources/Notchi/LocalTools.swift` | Öppna mapp, hitta fil (Spotlight), starta app, Genvägar, Claude Code |
-| `Sources/Notchi/Brain.swift` | Claude API med verktyg och webbsökning |
-| `Sources/Notchi/Speaker.swift` | Röster: macOS (gratis) och ElevenLabs |
-| `Sources/Notchi/Listener.swift` | Tryck-och-håll-taligenkänning |
-| `Sources/NotchiHook/main.swift` | Hooken som Claude Code kör |
-| `scripts/package.sh` | Bygger `build/Notchi.app` |
+| `Sources/Tamanotchi/TamanotchiApp.swift` | Start, meny, snabbtangent, kopplar ihop allt |
+| `Sources/Tamanotchi/NotchWindow.swift` | Fönstret runt notchen, utfälld vy, knappar |
+| `Sources/Tamanotchi/Mascot.swift` | De fyra karaktärerna + animation per tillstånd |
+| `Sources/Tamanotchi/SessionStore.swift` | Tillstånd, sessioner, godkännanden, färdiga fraser |
+| `Sources/Tamanotchi/HookServer.swift` | Socket-servern och hook-händelser |
+| `Sources/Tamanotchi/IntentRouter.swift` | Lokal tolkning av svenska kommandon |
+| `Sources/Tamanotchi/LocalTools.swift` | Öppna mapp, hitta fil (Spotlight), starta app, Genvägar, Claude Code |
+| `Sources/Tamanotchi/Brain.swift` | Claude API med verktyg och webbsökning |
+| `Sources/Tamanotchi/Speaker.swift` | Röster: macOS (gratis) och ElevenLabs |
+| `Sources/Tamanotchi/Listener.swift` | Tryck-och-håll-taligenkänning |
+| `Sources/TamanotchiHook/main.swift` | Hooken som Claude Code kör |
+| `scripts/package.sh` | Bygger `build/Tamanotchi.app` |
 | `scripts/install.sh` | Installerar (färdig release eller egen build) |
 | `.github/workflows/build.yml` | Molnbygget som skapar releasen |
 | `brand/` | Logotyp, symbol, appikon |
@@ -168,14 +168,14 @@ Du (⌃⌥ Mellanslag) ─▶ Taligenkänning ─▶ Lokal tolk ─┬─▶ öp
 
 - Läs om `config.json` automatiskt när den ändras.
 - Spara API-nycklar i Nyckelhanden (Keychain) i stället för i filen.
-- "Hej Notchi"-väckningsord (kräver alltid-på-lyssning; kan göras lokalt med Apples taligenkänning).
+- "Hej Tamanotchi"-väckningsord (kräver alltid-på-lyssning; kan göras lokalt med Apples taligenkänning).
 - Klicka på en session för att hoppa till rätt terminalflik.
-- Bygga egna genvägar i Genvägar-appen för allt du vill att Notchi ska kunna göra.
+- Bygga egna genvägar i Genvägar-appen för allt du vill att Tamanotchi ska kunna göra.
 
 ## Uppdatera
 
 ```bash
-cd /tmp && curl -fsSL --retry 3 https://github.com/JuicyM67/notchi/releases/download/latest/Notchi-macOS.zip -o n.zip && rm -rf Notchi && unzip -q n.zip && bash Notchi/install.sh
+cd /tmp && curl -fsSL --retry 3 https://github.com/JuicyM67/tamanotchi/releases/download/latest/Tamanotchi-macOS.zip -o n.zip && rm -rf Tamanotchi && unzip -q n.zip && bash Tamanotchi/install.sh
 ```
 
 ## Avinstallera

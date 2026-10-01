@@ -2,13 +2,13 @@ import Foundation
 import Speech
 import AVFoundation
 
-/// "Hej Notchi": lyssnar efter väckningsordet hela tiden, helt på enheten (gratis, inget lämnar datorn).
+/// "Hej Tamanotchi": lyssnar efter väckningsordet hela tiden, helt på enheten (gratis, inget lämnar datorn).
 ///
 /// - Kräver att Macen kan känna igen svenska på enheten. Annars startar den inte alls,
 ///   eftersom ljudet då skulle skickas till Apple hela tiden.
-/// - Pausar när Notchi själv pratar (så den inte hör sig själv) och när du håller snabbtangenten.
+/// - Pausar när Tamanotchi själv pratar (så den inte hör sig själv) och när du håller snabbtangenten.
 /// - Efter väckningsordet: det du säger fram till en kort tystnad blir kommandot.
-///   "Hej Notchi, öppna hämtade filer" fungerar i ett andetag.
+///   "Hej Tamanotchi, öppna hämtade filer" fungerar i ett andetag.
 /// - Mikrofonlampan (orange prick) lyser medan den lyssnar. Stäng av i menyn om du inte vill det.
 @MainActor
 final class WakeWord {
@@ -22,7 +22,7 @@ final class WakeWord {
     enum PauseReason: Hashable { case speaking, hotkey, command }
     private var pausedFor: Set<PauseReason> = []
     private var awake = false
-    private var wakeEndOffset = 0              // antal tecken fram till och med "Notchi"
+    private var wakeEndOffset = 0              // antal tecken fram till och med "Tamanotchi"
     private var latest = ""
     private var lastChange = Date()
     private var wokeAt = Date()
@@ -84,7 +84,7 @@ final class WakeWord {
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
         req.requiresOnDeviceRecognition = true
-        req.contextualStrings = ["Notchi", "hej Notchi", "hallå Notchi"]
+        req.contextualStrings = ["Tamanotchi", "hej Tamanotchi", "hallå Tamanotchi", "Notchi"]
         request = req
 
         let input = engine.inputNode
@@ -176,9 +176,9 @@ final class WakeWord {
         return rest.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters))
     }
 
-    /// Var slutar väckningsordet? Taligenkänningen stavar "Notchi" på många sätt.
+    /// Var slutar väckningsordet? Taligenkänningen stavar "Tamanotchi" på många sätt.
     static func wakeEnd(in text: String) -> Int? {
-        let pattern = #"(?i)\b(hej|hey|hallå|tja|hejsan)[\s,!.]+(n[oåa]h?t?[cst]?[hj]?[iy]e?|notch(?:\s?i)?|nachi|natchi|notschi|nåtschi|notji|nottji)\b"#
+        let pattern = #"(?i)\b(hej|hey|hallå|tja|hejsan)[\s,!.]+(?:tama[\s-]?)?([gn][oåa]h?t?[cst]?[hj]?[iy]e?|notch(?:\s?i)?|gotchi|nachi|natchi|notschi|nåtschi|notji|nottji)\b"#
         guard let re = try? NSRegularExpression(pattern: pattern),
               let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
               let r = Range(m.range, in: text) else { return nil }

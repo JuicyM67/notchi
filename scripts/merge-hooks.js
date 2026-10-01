@@ -1,4 +1,4 @@
-// Slår ihop (eller tar bort) Notchis hooks i Claude Codes settings.json.
+// Slår ihop (eller tar bort) Tamanotchis hooks i Claude Codes settings.json.
 // Körs med: osascript -l JavaScript merge-hooks.js install|uninstall <settings.json> <hook-sökväg>
 ObjC.import('Foundation');
 
@@ -16,6 +16,7 @@ function run(argv) {
   const settings = raw && raw.trim() ? JSON.parse(raw) : {};
   settings.hooks = settings.hooks || {};
 
+  // Matchar både nya "tamanotchi-hook" och gamla "notchi-hook", så gamla hooks ersätts
   const MARK = 'notchi-hook';
   // Händelser som bara informerar körs i bakgrunden (async) så att Claude Code aldrig väntar.
   const events = {
@@ -43,7 +44,7 @@ function run(argv) {
   if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
 
   // Statusraden: där skickar Claude Code din användning (5 tim / vecka).
-  // En statusrad du redan hade sparas och körs vidare av Notchi, så den syns precis som förut.
+  // En statusrad du redan hade sparas och körs vidare av Tamanotchi, så den syns precis som förut.
   const sl = settings.statusLine;
   const isOurs = sl && typeof sl.command === 'string' && sl.command.includes(MARK);
   if (mode === 'install') {

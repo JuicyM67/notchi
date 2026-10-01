@@ -1,7 +1,7 @@
 import Foundation
 import AppKit
 
-/// Saker Notchi kan göra på datorn. Samma funktioner används både av den lokala
+/// Saker Tamanotchi kan göra på datorn. Samma funktioner används både av den lokala
 /// kommandotolken (gratis) och av Claude som verktyg (tool use).
 enum LocalTools {
 
@@ -75,7 +75,7 @@ enum LocalTools {
         var args = ["run", name]
         var tmp: URL?
         if let input {
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("notchi-\(UUID().uuidString).txt")
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("tamanotchi-\(UUID().uuidString).txt")
             try? input.write(to: url, atomically: true, encoding: .utf8)
             args += ["-i", url.path]; tmp = url
         }
@@ -117,7 +117,7 @@ enum LocalTools {
     static func askClaudeCode(_ prompt: String, cwd: String?) -> String {
         let dir = cwd ?? FileManager.default.homeDirectoryForCurrentUser.path
         // Prompten skickas som argument, aldrig inbakad i skalsträngen
-        let out = run("/bin/zsh", ["-lc", "export PATH=\"$HOME/.local/bin:$HOME/.claude/local:/opt/homebrew/bin:/usr/local/bin:$PATH\"; cd \"$1\" && claude -p \"$2\" --output-format text", "notchi", dir, prompt], timeout: 300)
+        let out = run("/bin/zsh", ["-lc", "export PATH=\"$HOME/.local/bin:$HOME/.claude/local:/opt/homebrew/bin:/usr/local/bin:$PATH\"; cd \"$1\" && claude -p \"$2\" --output-format text", "tamanotchi", dir, prompt], timeout: 300)
         return out.isEmpty ? "Claude Code svarade inte." : String(out.prefix(2000))
     }
 

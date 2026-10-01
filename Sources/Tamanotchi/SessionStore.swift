@@ -60,7 +60,7 @@ final class SessionStore: ObservableObject {
     @Published var bubble: String? = nil          // text i pratbubblan
     @Published var listening = false
     @Published var speaking = false
-    @Published var thinkingLocally = false        // Notchi själv väntar på Claude API
+    @Published var thinkingLocally = false        // Tamanotchi själv väntar på Claude API
     @Published var justFinished: Date? = nil
     @Published var hovering = false
     @Published var usage = Usage.load()
@@ -226,10 +226,10 @@ final class SessionStore: ObservableObject {
     private func once(_ key: String, _ reset: Date?) -> Bool {
         let id = reset.map { String(Int($0.timeIntervalSince1970 / 60)) } ?? "okänd"
         let defaults = UserDefaults.standard
-        var seen = defaults.dictionary(forKey: "notchi.warned") as? [String: String] ?? [:]
+        var seen = defaults.dictionary(forKey: "tamanotchi.warned") as? [String: String] ?? [:]
         if seen[key] == id { return false }
         seen[key] = id
-        defaults.set(seen, forKey: "notchi.warned")
+        defaults.set(seen, forKey: "tamanotchi.warned")
         return true
     }
 
@@ -256,9 +256,9 @@ final class SessionStore: ObservableObject {
                                                       activity: "", working: false, updated: Date(),
                                                       skin: nextSkin())
         s.updated = Date()
-        if let app = e.raw["notchi_app"] as? String, !app.isEmpty { s.appPath = app }
-        let isAgent = e.raw["notchi_agent"] as? Bool == true
-        if isAgent { s.project = "Notchi" }
+        if let app = e.raw["tamanotchi_app"] as? String, !app.isEmpty { s.appPath = app }
+        let isAgent = e.raw["tamanotchi_agent"] as? Bool == true
+        if isAgent { s.project = "Tamanotchi" }
         if !e.cwd.isEmpty { s.cwd = e.cwd; s.project = e.projectName }
 
         switch e.name {
@@ -332,7 +332,7 @@ final class SessionStore: ObservableObject {
         return text
     }
 
-    /// Det Notchi säger när du klickar på den. Byggs av färdiga fraser: gratis och direkt.
+    /// Det Tamanotchi säger när du klickar på den. Byggs av färdiga fraser: gratis och direkt.
     func spokenStatus() -> String {
         var parts: [String] = []
         if let p = pending.first {

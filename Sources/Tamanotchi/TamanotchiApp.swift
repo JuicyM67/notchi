@@ -33,7 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         brain = Brain(config: config, lastCwd: { [weak self] in await self?.store.mostRecentCwd })
 
         store.say = { [weak self] text in self?.say(text) }
-        // Peta på Notchi: berätta läget (eller tystna om den redan pratar)
+        // Peta på Tamanotchi: berätta läget (eller tystna om den redan pratar)
         store.onPoke = { [weak self] in
             guard let self else { return }
             if self.store.speaking {
@@ -231,14 +231,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         events.submenu = sub
         menu.addItem(events)
-        let wakeItem = NSMenuItem(title: "Lyssna efter ”Hej Notchi” (mikrofonen alltid på)", action: #selector(toggleWake(_:)), keyEquivalent: "")
+        let wakeItem = NSMenuItem(title: "Lyssna efter ”Hej Tamanotchi” (mikrofonen alltid på)", action: #selector(toggleWake(_:)), keyEquivalent: "")
         wakeItem.target = self; wakeItem.state = config.wakeWordOptIn ? .on : .off
         menu.addItem(wakeItem)
         let cfg = NSMenuItem(title: "Öppna inställningar…", action: #selector(openConfig), keyEquivalent: ",")
         cfg.target = self
         menu.addItem(cfg)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Avsluta Notchi", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Avsluta Tamanotchi", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
     }
 
@@ -319,7 +319,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         speaker.speak(text)
     }
 
-    // MARK: Hej Notchi
+    // MARK: Hej Tamanotchi
 
     private func setupWake() {
         wake = WakeWord(language: config.language)
@@ -349,17 +349,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func applyWakeSetting(announce: Bool) {
         if config.wakeWordOptIn && !wake.supported {
             wake.setEnabled(false)
-            if announce || !UserDefaults.standard.bool(forKey: "notchi.wakeUnsupportedShown") {
-                UserDefaults.standard.set(true, forKey: "notchi.wakeUnsupportedShown")
-                store.showBubble("”Hej Notchi” kräver svensk taligenkänning på enheten. Slå på Diktering i Systeminställningar → Tangentbord och starta om Notchi.", seconds: 14)
+            if announce || !UserDefaults.standard.bool(forKey: "tamanotchi.wakeUnsupportedShown") {
+                UserDefaults.standard.set(true, forKey: "tamanotchi.wakeUnsupportedShown")
+                store.showBubble("”Hej Tamanotchi” kräver svensk taligenkänning på enheten. Slå på Diktering i Systeminställningar → Tangentbord och starta om Tamanotchi.", seconds: 14)
             }
             return
         }
         wake.setEnabled(config.wakeWordOptIn)
-        if announce { say(config.wakeWordOptIn ? "Nu lyssnar jag efter hej Notchi." : "Okej, jag slutar lyssna.") }
+        if announce { say(config.wakeWordOptIn ? "Nu lyssnar jag efter hej Tamanotchi." : "Okej, jag slutar lyssna.") }
     }
 
-    /// Lyssna inte medan Notchi själv pratar, så den inte väcker sig själv
+    /// Lyssna inte medan Tamanotchi själv pratar, så den inte väcker sig själv
     private func syncWakeWithSpeech() {
         guard let wake else { return }
         if store.speaking {
@@ -397,7 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.pinned = false
     }
 
-    // MARK: Prata med Notchi
+    // MARK: Prata med Tamanotchi
 
     private func startListening() {
         guard !store.listening else { return }
@@ -461,7 +461,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Allt Notchi inte klarar själv: Claude Code (abonnemanget) eller Claude API (nyckel)
+    /// Allt Tamanotchi inte klarar själv: Claude Code (abonnemanget) eller Claude API (nyckel)
     private func askAgent(_ q: String) async {
         store.thinkingLocally = true
         defer { store.thinkingLocally = false }
@@ -510,7 +510,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 // MARK: - Start
 
 @main
-enum NotchiMain {
+enum TamanotchiMain {
     @MainActor
     static func main() {
         signal(SIGPIPE, SIG_IGN)   // skriv till en hook som redan avslutats ska inte krascha appen
