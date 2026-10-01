@@ -173,7 +173,7 @@ Du (⌃⌥ Mellanslag) ─▶ Taligenkänning ─▶ Lokal tolk ─┬─▶ öp
 ## Uppdatera
 
 ```bash
-cd /tmp && curl -sL https://github.com/JuicyM67/notchi/releases/download/latest/Notchi-macOS.zip -o n.zip && rm -rf Notchi && unzip -q n.zip && bash Notchi/install.sh
+cd /tmp && curl -fsSL --retry 3 https://github.com/JuicyM67/notchi/releases/download/latest/Notchi-macOS.zip -o n.zip && rm -rf Notchi && unzip -q n.zip && bash Notchi/install.sh
 ```
 
 ## Avinstallera
