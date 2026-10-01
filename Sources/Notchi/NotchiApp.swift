@@ -422,7 +422,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handle(_ text: String) async {
-        let intent = IntentRouter.parse(text, hasPending: !store.pending.isEmpty)
+        let hasPending = !store.pending.isEmpty
+
+        // 1) Flera steg i en mening ("öppna Spotify och spela musik")?
+        if !hasPending, IntentRouter.isMultiStep(text) {
+            if let steps = IntentRouter.chain(text) {
+                // Alla steg går att göra lokalt: kör dem i ordning, gratis
+                for (i, step) in steps.enumerated() {
+                    if i > 0 { try? await Task.sleep(for: .seconds(1.2)) }   // låt förra appen hinna starta
+                    let ok = await perform(step, quiet: i < steps.count - 1)
+                    if !ok { await askAgent(text); return }               // ett steg misslyckades: låt Claude Code ta det
+                }
+            } else {
+                await askAgent(text)
+            }
+            return
+        }
+
+        // 2) Ett enda kommando
+        let intent = IntentRouter.parse(text, hasPending: hasPending)
         switch intent {
         case .approve:
             guard let p = store.pending.first else { return }
@@ -435,58 +453,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let p = store.pending.first { store.resolve(p, allow: false); say("Okej, nekat.") }
         case .stopTalking:
             speaker.stop(); store.speaking = false; store.bubble = nil
-        case .status:
-            say(store.spokenStatus())
-        case .usage:
-            say(store.usageSentence() ?? "Jag ser ingen användning än. Den dyker upp efter första svaret i en Claude Code-session.")
-        case .openFolder(let name):
-            say(await Task.detached { LocalTools.openFolder(name) }.value)
-        case .launchApp(let name):
-            say(await Task.detached { LocalTools.launchApp(name) }.value)
-        case .openAny(let name):
-            let result = await Task.detached { () -> String in
-                let app = LocalTools.launchApp(name)
-                return app.hasPrefix("Jag hittade") ? LocalTools.openFolder(name) : app
-            }.value
-            say(result)
-        case .findFile(let q):
-            say(await Task.detached { LocalTools.findFiles(q).summary }.value)
-        case .runShortcut(let name):
-            say(await Task.detached { LocalTools.runShortcut(name) }.value)
-        case .media(let action):
-            say(await Task.detached { LocalTools.media(action) }.value)
         case .askClaude(let q):
-            // Flera enkla steg i rad? ("öppna Spotify och spela musik") – gör dem lokalt, gratis
-            if let steps = IntentRouter.chain(q) {
-                for (i, step) in steps.enumerated() {
-                    if i > 0 { try? await Task.sleep(for: .seconds(1.2)) }   // låt förra appen hinna starta
-                    await perform(step, quiet: i < steps.count - 1)
-                }
-                return
-            }
-            store.thinkingLocally = true
-            if config.brain == "api", config.resolvedAnthropicKey != nil {
-                store.bubble = "Hmm…"
-                let answer = await brain.ask(q) { @MainActor [weak self] progress in
-                    self?.say(progress)
-                }
-                store.thinkingLocally = false
-                say(answer)
-            } else {
-                // Claude Code gör jobbet, med ditt abonnemang
-                store.dismissed = false
-                store.bubble = "Fixar det…"
-                let ctx = ClaudeAgent.gatherContext(recentProject: store.mostRecentCwd)
-                let model = config.agentModel
-                let answer = await Task.detached { ClaudeAgent.run(q, context: ctx, model: model) }.value
-                store.thinkingLocally = false
-                say(answer)
-            }
+            await askAgent(q)
+        default:
+            // Lokalt kommando; hittar vi inte saken lokalt får Claude Code försöka
+            if !(await perform(intent, quiet: false)) { await askAgent(text) }
         }
     }
 
-    /// Ett lokalt steg i en kedja; bara sista steget pratar
-    private func perform(_ intent: LocalIntent, quiet: Bool) async {
+    /// Allt Notchi inte klarar själv: Claude Code (abonnemanget) eller Claude API (nyckel)
+    private func askAgent(_ q: String) async {
+        store.thinkingLocally = true
+        defer { store.thinkingLocally = false }
+        if config.brain == "api", config.resolvedAnthropicKey != nil {
+            store.bubble = "Hmm…"
+            let answer = await brain.ask(q) { @MainActor [weak self] progress in
+                self?.say(progress)
+            }
+            say(answer)
+        } else {
+            store.dismissed = false
+            store.bubble = "Fixar det…"
+            let ctx = ClaudeAgent.gatherContext(recentProject: store.mostRecentCwd)
+            let model = config.agentModel
+            let answer = await Task.detached { ClaudeAgent.run(q, context: ctx, model: model) }.value
+            say(answer)
+        }
+    }
+
+    /// Ett lokalt kommando. quiet: säg inget (mellansteg i en kedja).
+    /// Returnerar false om saken inte hittades lokalt.
+    @discardableResult
+    private func perform(_ intent: LocalIntent, quiet: Bool) async -> Bool {
         let reply: String
         switch intent {
         case .openFolder(let n): reply = await Task.detached { LocalTools.openFolder(n) }.value
@@ -500,10 +498,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .runShortcut(let n): reply = await Task.detached { LocalTools.runShortcut(n) }.value
         case .media(let a): reply = await Task.detached { LocalTools.media(a) }.value
         case .status: reply = store.spokenStatus()
-        case .usage: reply = store.usageSentence() ?? ""
+        case .usage: reply = store.usageSentence() ?? "Jag ser ingen användning än."
         default: reply = ""
         }
+        if reply.hasPrefix("Jag hittade ingen") || reply.hasPrefix("Jag hittade inga") { return false }
         if !quiet && !reply.isEmpty { say(reply) }
+        return true
     }
 }
 

@@ -19,6 +19,15 @@ enum LocalIntent {
 enum IntentRouter {
     /// "Öppna Spotify och spela musik" → flera lokala steg, om ALLA delar går att göra lokalt.
     /// Annars nil: då får Claude Code ta hela meningen.
+    static func steps(_ raw: String) -> [String] {
+        raw.lowercased()
+            .replacingOccurrences(of: #"\s*(,\s*)?\b(och sen|och sedan|och|sen|sedan|därefter)\b\s*"#, with: "|", options: .regularExpression)
+            .split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+
+    /// Innehåller meningen flera steg? ("öppna X och gör Y")
+    static func isMultiStep(_ raw: String) -> Bool { steps(raw).count > 1 }
+
     static func chain(_ raw: String) -> [LocalIntent]? {
         let parts = raw.lowercased()
             .replacingOccurrences(of: #"\s*(,\s*)?\b(och sen|och sedan|och|sen|sedan|därefter)\b\s*"#, with: "|", options: .regularExpression)
