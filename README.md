@@ -40,6 +40,8 @@ Första gången frågar macOS om mikrofon och taligenkänning – svara ja.
 | Skicka tillbaka till terminalen | Klicka **Terminal** |
 | Prata | Håll **⌃⌥ Mellanslag**, prata, släpp |
 | Byta karaktär | ●-ikonen i menyraden → välj Pim, Oda, Bo eller Kix |
+| Väcka med rösten | Säg **”Hej Notchi”** och sedan vad du vill, t.ex. ”Hej Notchi, vad gör Claude?” (av/på i menyn) |
+| Hoppa till en session | Klicka på sessionen i utfälld vy: rätt app öppnas, i VS Code rätt projektfönster |
 | Höra läget | Klicka på maskoten eller notchen; klicka igen för att tysta |
 | Låsa öppen / fälla ihop | Nålen respektive ⌃-knappen uppe till höger i utfälld vy |
 | Se användning | Mätarna 5 tim och Vecka i utfälld vy, ringen runt statuspricken, eller fråga "hur mycket har jag kvar?" |
@@ -54,6 +56,22 @@ Exempel på vad du kan säga:
 - "Vad är skillnaden på SwiftUI och AppKit?" (går till Claude)
 - "Vad säger SMHI om vädret i Borås i morgon?" (Claude + webbsökning)
 - "Fråga Claude Code vad den senaste commiten gjorde" (körs i ditt senaste projekt)
+
+## Gänget och humöret
+
+Varje Claude Code-session får en egen karaktär: din valda först, sedan resten av gänget.
+Notchen visar den som är viktigast just nu (den som väntar på dig, annars den som jobbar).
+
+Humöret följer dagen:
+
+| Humör | När | Syns som |
+|---|---|---|
+| Sömnig | före 08 och efter 23 | tunga ögonlock, gäspar, små zzz |
+| Stolt | fyra klara uppgifter på 90 minuter | gnistor runt huvudet, stort leende |
+| Stressad | 90 % av 5-timmarsgränsen eller 95 % av veckan | svettdroppe, rör sig fortare |
+
+Notchi säger också till vid 80 % och 100 % av 5-timmarsgränsen (och 90/100 % av veckan),
+en gång per period.
 
 ## Kostnad – så hålls den nere
 
