@@ -22,10 +22,13 @@ struct Config: Codable {
     var elevenLabsModel: String = "eleven_flash_v2_5"
 
     var skin: String = "pim"             // pim | oda | bo | kix
-    var speakEvents: Bool = true         // läs upp godkännanden/klart
+    var speakEvents: Bool = true         // (gammal inställning, ersatt av eventStyle)
+    /// Hur händelser (behöver dig, klart, gränsen) märks: "sounds" (systemljud), "voice" (tal) eller "silent"
+    var eventStyle: String = "sounds"
     var voiceApprovals: Bool = true      // tillåt "ja"/"nej" med rösten (känsliga kommandon kräver alltid klick)
     var language: String = "sv-SE"
-    var wakeWord: Bool = true            // lyssna efter "Hej Notchi" (på enheten, gratis)
+    /// "Hej Notchi": AV som standard (mikrofonen är på hela tiden när det används). Slås på i menyn.
+    var wakeWordOptIn: Bool = false
     var usagePolling: Bool = true        // hämta användning var 5:e min (fungerar även i appen och VS Code)
 
     static let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".notchi")
@@ -86,6 +89,7 @@ extension Config {
         voiceApprovals = try c.decodeIfPresent(Bool.self, forKey: .voiceApprovals) ?? d.voiceApprovals
         language = try c.decodeIfPresent(String.self, forKey: .language) ?? d.language
         usagePolling = try c.decodeIfPresent(Bool.self, forKey: .usagePolling) ?? d.usagePolling
-        wakeWord = try c.decodeIfPresent(Bool.self, forKey: .wakeWord) ?? d.wakeWord
+        wakeWordOptIn = try c.decodeIfPresent(Bool.self, forKey: .wakeWordOptIn) ?? d.wakeWordOptIn
+        eventStyle = try c.decodeIfPresent(String.self, forKey: .eventStyle) ?? d.eventStyle
     }
 }

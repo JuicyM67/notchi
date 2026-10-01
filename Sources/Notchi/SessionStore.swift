@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Combine
 
 /// Maskotens humör/tillstånd. Styr animation och färgaccent.
@@ -203,7 +204,7 @@ final class SessionStore: ObservableObject {
         }
         guard !lines.isEmpty else { return }
         let text = lines.joined(separator: " ")
-        if config.speakEvents { say?(text) } else { showBubble(text, seconds: 12) }
+        announce(text, sound: "Funk", important: true)
     }
 
     /// true första gången för just det här fönstret (identifieras av när det nollställs)
@@ -260,15 +261,13 @@ final class SessionStore: ObservableObject {
                 reply.onClosed = { [weak self] in self?.pending.removeAll { $0.id == item.id } }
                 pending.append(item)
                 dismissed = false            // ny fråga: visa den
-                if config.speakEvents {
-                    say?(Narrator.permission(e))
-                }
+                announce(Narrator.permission(e), sound: "Ping")
             }
         case "Notification":
             if e.notificationType == "idle_prompt" {
                 s.working = false
                 s.short = "Väntar på dig"
-                if config.speakEvents { say?("\(s.project) väntar på dig.") }
+                announce("\(s.project) väntar på dig.", sound: "Pop")
             }
         case "Stop":
             s.working = false
@@ -278,7 +277,7 @@ final class SessionStore: ObservableObject {
             justFinished = Date()
             completions.append(Date())
             completions.removeAll { Date().timeIntervalSince($0) > 3 * 3600 }
-            if config.speakEvents { say?(Narrator.done(project: s.project)) }
+            announce(Narrator.done(project: s.project), sound: "Glass")
             // Uppdatera vyn igen när "klar"-glädjen har gått över
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(6.5))
@@ -359,6 +358,20 @@ final class SessionStore: ObservableObject {
         s += "."
         if let w = usage.sevenDay { s += " Veckan ligger på \(Int(w.rounded())) procent." }
         return s
+    }
+
+    /// Säg till om en händelse på det sätt du valt i menyn.
+    /// important: visa texten i notchen även i ljudläge (t.ex. gränsvarningar)
+    func announce(_ text: String, sound: String, important: Bool = false) {
+        switch config.eventStyle {
+        case "voice":
+            say?(text)
+        case "silent":
+            if important { showBubble(text, seconds: 12) }
+        default:   // "sounds"
+            NSSound(named: NSSound.Name(sound))?.play()
+            if important { showBubble(text, seconds: 12) }
+        }
     }
 
     func showBubble(_ text: String, seconds: Double = 8) {

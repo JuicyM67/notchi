@@ -40,7 +40,8 @@ Första gången frågar macOS om mikrofon och taligenkänning – svara ja.
 | Skicka tillbaka till terminalen | Klicka **Terminal** |
 | Prata | Håll **⌃⌥ Mellanslag**, prata, släpp |
 | Byta karaktär | ●-ikonen i menyraden → välj Pim, Oda, Bo eller Kix |
-| Väcka med rösten | Säg **”Hej Notchi”** och sedan vad du vill, t.ex. ”Hej Notchi, vad gör Claude?” (av/på i menyn) |
+| Väcka med rösten | Slå på *Lyssna efter ”Hej Notchi”* i menyn (av som standard, mikrofonen är då alltid på). Säg sedan ”Hej Notchi, vad gör Claude?” |
+| Välja hur händelser hörs | Menyn → *När något händer*: Systemljud (standard), Röst eller Tyst |
 | Hoppa till en session | Klicka på sessionen i utfälld vy: rätt app öppnas, i VS Code rätt projektfönster |
 | Höra läget | Klicka på maskoten eller notchen; klicka igen för att tysta |
 | Låsa öppen / fälla ihop | Nålen respektive ⌃-knappen uppe till höger i utfälld vy |

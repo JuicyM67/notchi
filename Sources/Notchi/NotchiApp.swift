@@ -196,11 +196,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(item)
         }
         menu.addItem(.separator())
-        let speak = NSMenuItem(title: "Läs upp händelser", action: #selector(toggleSpeak(_:)), keyEquivalent: "")
-        speak.target = self; speak.state = config.speakEvents ? .on : .off
-        menu.addItem(speak)
-        let wakeItem = NSMenuItem(title: "Lyssna efter ”Hej Notchi”", action: #selector(toggleWake(_:)), keyEquivalent: "")
-        wakeItem.target = self; wakeItem.state = config.wakeWord ? .on : .off
+        // Hur händelser märks
+        let events = NSMenuItem(title: "När något händer", action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        for (key, title) in [("sounds", "Systemljud"), ("voice", "Röst"), ("silent", "Tyst")] {
+            let it = NSMenuItem(title: title, action: #selector(pickEventStyle(_:)), keyEquivalent: "")
+            it.target = self
+            it.representedObject = key
+            it.state = config.eventStyle == key ? .on : .off
+            sub.addItem(it)
+        }
+        events.submenu = sub
+        menu.addItem(events)
+        let wakeItem = NSMenuItem(title: "Lyssna efter ”Hej Notchi” (mikrofonen alltid på)", action: #selector(toggleWake(_:)), keyEquivalent: "")
+        wakeItem.target = self; wakeItem.state = config.wakeWordOptIn ? .on : .off
         menu.addItem(wakeItem)
         let cfg = NSMenuItem(title: "Öppna inställningar…", action: #selector(openConfig), keyEquivalent: ",")
         cfg.target = self
@@ -219,16 +228,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         say("Hej! Nu ser jag ut så här.")
     }
 
-    @objc private func toggleSpeak(_ sender: NSMenuItem) {
-        config.speakEvents.toggle(); config.save()
+    @objc private func pickEventStyle(_ sender: NSMenuItem) {
+        config.eventStyle = sender.representedObject as? String ?? "sounds"
+        config.save()
         store.config = config
-        sender.state = config.speakEvents ? .on : .off
+        sender.menu?.items.forEach { $0.state = ($0 === sender) ? .on : .off }
+        switch config.eventStyle {
+        case "voice": say("Okej, jag säger till med rösten.")
+        case "sounds": NSSound(named: "Glass")?.play()
+        default: break
+        }
     }
 
     @objc private func toggleWake(_ sender: NSMenuItem) {
-        config.wakeWord.toggle(); config.save()
+        config.wakeWordOptIn.toggle(); config.save()
         store.config = config
-        sender.state = config.wakeWord ? .on : .off
+        sender.state = config.wakeWordOptIn ? .on : .off
         applyWakeSetting(announce: true)
     }
 
@@ -299,7 +314,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func applyWakeSetting(announce: Bool) {
-        if config.wakeWord && !wake.supported {
+        if config.wakeWordOptIn && !wake.supported {
             wake.setEnabled(false)
             if announce || !UserDefaults.standard.bool(forKey: "notchi.wakeUnsupportedShown") {
                 UserDefaults.standard.set(true, forKey: "notchi.wakeUnsupportedShown")
@@ -307,8 +322,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
-        wake.setEnabled(config.wakeWord)
-        if announce { say(config.wakeWord ? "Nu lyssnar jag efter hej Notchi." : "Okej, jag slutar lyssna.") }
+        wake.setEnabled(config.wakeWordOptIn)
+        if announce { say(config.wakeWordOptIn ? "Nu lyssnar jag efter hej Notchi." : "Okej, jag slutar lyssna.") }
     }
 
     /// Lyssna inte medan Notchi själv pratar, så den inte väcker sig själv
