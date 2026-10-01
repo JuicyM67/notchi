@@ -188,13 +188,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.title = "●"
         let menu = NSMenu()
-        for s in Skin.allCases {
-            let item = NSMenuItem(title: s.displayName, action: #selector(pickSkin(_:)), keyEquivalent: "")
-            item.representedObject = s.rawValue
-            item.target = self
-            item.state = s == skin ? .on : .off
-            menu.addItem(item)
+        // Karaktär: gänget och djuren
+        let charItem = NSMenuItem(title: "Karaktär", action: nil, keyEquivalent: "")
+        let charMenu = NSMenu()
+        for (title, group) in [("Gänget", Skin.gang), ("Djuren", Skin.animals)] {
+            let header = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            charMenu.addItem(header)
+            for s in group {
+                let item = NSMenuItem(title: s.displayName, action: #selector(pickSkin(_:)), keyEquivalent: "")
+                item.representedObject = s.rawValue
+                item.target = self
+                item.state = s == skin ? .on : .off
+                item.indentationLevel = 1
+                charMenu.addItem(item)
+            }
         }
+        charItem.submenu = charMenu
+        menu.addItem(charItem)
+        // Stil: gäller alla karaktärer
+        let styleItem = NSMenuItem(title: "Stil", action: nil, keyEquivalent: "")
+        let styleMenu = NSMenu()
+        for st in MascotStyle.allCases {
+            let it = NSMenuItem(title: st.displayName, action: #selector(pickStyle(_:)), keyEquivalent: "")
+            it.representedObject = st.rawValue
+            it.target = self
+            it.state = config.style == st.rawValue ? .on : .off
+            styleMenu.addItem(it)
+        }
+        styleItem.submenu = styleMenu
+        menu.addItem(styleItem)
         menu.addItem(.separator())
         // Hur händelser märks
         let events = NSMenuItem(title: "När något händer", action: nil, keyEquivalent: "")
@@ -225,7 +248,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.config = config
         sender.menu?.items.forEach { if $0.representedObject != nil { $0.state = ($0 === sender) ? .on : .off } }
         store.objectWillChange.send()
-        say("Hej! Nu ser jag ut så här.")
+        let s = Skin(rawValue: config.skin) ?? .pim
+        say("Hej! Jag heter \(s.name).")
+    }
+
+    @objc private func pickStyle(_ sender: NSMenuItem) {
+        config.style = sender.representedObject as? String ?? "visor"
+        config.save()
+        store.config = config
+        sender.menu?.items.forEach { $0.state = ($0 === sender) ? .on : .off }
+        store.objectWillChange.send()
     }
 
     @objc private func pickEventStyle(_ sender: NSMenuItem) {

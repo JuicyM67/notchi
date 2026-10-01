@@ -147,7 +147,7 @@ struct NotchView: View {
     private func collapsedContent(label: String?) -> some View {
         HStack(spacing: 0) {
             // Vänster öra: maskoten
-            MascotView(skin: store.primarySkin, state: store.state, level: voice.level, mood: store.mood)
+            MascotView(skin: store.primarySkin, state: store.state, level: voice.level, mood: store.mood, style: store.style)
                 .frame(width: geometry.notchHeight - 2, height: geometry.notchHeight - 4)
                 .frame(width: geometry.ear)
             // Den fysiska notchen: här kan inget synas
@@ -217,7 +217,7 @@ struct NotchView: View {
     @ViewBuilder
     private var mainRow: some View {
         HStack(alignment: .top, spacing: 12) {
-            MascotView(skin: store.primarySkin, state: store.state, level: voice.level, mood: store.mood)
+            MascotView(skin: store.primarySkin, state: store.state, level: voice.level, mood: store.mood, style: store.style)
                 .frame(width: 60, height: 60)
                 .contentShape(Rectangle())
                 .onTapGesture { store.onPoke?() }
@@ -295,7 +295,7 @@ struct NotchView: View {
                 Button { store.onJump?(s) } label: {
                     HStack(alignment: .top, spacing: 7) {
                         // Varje session har sin egen karaktär, med sitt eget uttryck
-                        MascotView(skin: s.skin, state: store.state(for: s), mood: store.mood)
+                        MascotView(skin: s.skin, state: store.state(for: s), mood: store.mood, style: store.style)
                             .frame(width: 22, height: 22)
                         VStack(alignment: .leading, spacing: 1) {
                             HStack(spacing: 6) {

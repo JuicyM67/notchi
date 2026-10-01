@@ -92,11 +92,15 @@ final class SessionStore: ObservableObject {
 
     /// Din valda karaktär (menyn) – används när inget pågår och för första sessionen
     var preferredSkin: Skin { Skin(rawValue: config.skin) ?? .pim }
+    var style: MascotStyle { MascotStyle(rawValue: config.style) ?? .visor }
 
     /// Ny session: din valda karaktär om den är ledig, annars nästa lediga i gänget
     private func nextSkin() -> Skin {
         let used = Set(sessions.values.map(\.skin))
-        let order = [preferredSkin] + Skin.allCases.filter { $0 != preferredSkin }
+        // Samma familj först: väljer du ett djur får nästa session också ett djur
+        let family = preferredSkin.isAnimal ? Skin.animals : Skin.gang
+        let others = preferredSkin.isAnimal ? Skin.gang : Skin.animals
+        let order = [preferredSkin] + family.filter { $0 != preferredSkin } + others
         return order.first { !used.contains($0) } ?? order[sessions.count % order.count]
     }
 

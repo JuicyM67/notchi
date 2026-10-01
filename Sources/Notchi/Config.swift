@@ -21,7 +21,8 @@ struct Config: Codable {
     var elevenLabsVoiceId: String? = nil
     var elevenLabsModel: String = "eleven_flash_v2_5"
 
-    var skin: String = "pim"             // pim | oda | bo | kix
+    var skin: String = "pim"             // pim | oda | bo | kix | fia | misse | hubbe | pingo
+    var style: String = "visor"          // visor | neon | classic
     var speakEvents: Bool = true         // (gammal inställning, ersatt av eventStyle)
     /// Hur händelser (behöver dig, klart, gränsen) märks: "sounds" (systemljud), "voice" (tal) eller "silent"
     var eventStyle: String = "sounds"
@@ -85,6 +86,7 @@ extension Config {
         elevenLabsVoiceId = try c.decodeIfPresent(String.self, forKey: .elevenLabsVoiceId)
         elevenLabsModel = try c.decodeIfPresent(String.self, forKey: .elevenLabsModel) ?? d.elevenLabsModel
         skin = try c.decodeIfPresent(String.self, forKey: .skin) ?? d.skin
+        style = try c.decodeIfPresent(String.self, forKey: .style) ?? d.style
         speakEvents = try c.decodeIfPresent(Bool.self, forKey: .speakEvents) ?? d.speakEvents
         voiceApprovals = try c.decodeIfPresent(Bool.self, forKey: .voiceApprovals) ?? d.voiceApprovals
         language = try c.decodeIfPresent(String.self, forKey: .language) ?? d.language
