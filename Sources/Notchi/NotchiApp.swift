@@ -135,9 +135,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         wasDismissed = store.dismissed
         if !store.hovering {
             // Öppna när musen vilat på notchen en kort stund
-            let zone = geometry.shapeRect(expanded: false, showsLabel: store.shortStatus != nil).insetBy(dx: -2, dy: -3)
+            let zone = geometry.shapeRect(expanded: false, label: store.shortStatus).insetBy(dx: -2, dy: -3)
             if mustLeaveFirst {
-                if !zone.contains(mouse) && !geometry.shapeRect(expanded: true, showsLabel: true).contains(mouse) {
+                if !zone.contains(mouse) && !geometry.shapeRect(expanded: true, label: nil).contains(mouse) {
                     mustLeaveFirst = false
                 }
                 enteredAt = nil
@@ -151,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         } else {
             // Stäng när musen varit utanför den utfällda ytan en stund
-            let zone = geometry.shapeRect(expanded: true, showsLabel: true).insetBy(dx: -10, dy: -10)
+            let zone = geometry.shapeRect(expanded: true, label: nil).insetBy(dx: -10, dy: -10)
             if zone.contains(mouse) {
                 leftAt = nil
             } else {

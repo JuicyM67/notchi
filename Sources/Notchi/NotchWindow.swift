@@ -36,37 +36,56 @@ struct NotchGeometry: Equatable {
 
     /// "Örat" på varje sida om den fysiska notchen (här bor maskoten till vänster)
     var ear: CGFloat { notchHeight + 4 }
+    /// Statustextens typsnitt (samma som i vyn) och mått runt den på höger sida
+    static let labelFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
+    static let rightLead: CGFloat = 10      // luft mellan notchens kant och texten
+    static let dotWidth: CGFloat = 15
+    static let gap: CGFloat = 6
+    static let rightTrail: CGFloat = 10
+    static let maxLabelRoom: CGFloat = 150
+
+    static func textWidth(_ s: String) -> CGFloat {
+        ceil((s as NSString).size(withAttributes: [.font: labelFont]).width) + 2
+    }
+
+    /// Bredd på höger sida av den fysiska notchen
+    func rightWidth(label: String?) -> CGFloat {
+        guard let label else { return ear }
+        let need = Self.rightLead + Self.textWidth(label) + Self.gap + Self.dotWidth + Self.rightTrail
+        return max(ear, min(need, ear + Self.maxLabelRoom))
+    }
+
     /// Extra bredd till HÖGER när en statustext visas (bara på den sidan, så notchen hålls smal)
-    static let labelRoom: CGFloat = 74
+    func labelRoom(_ label: String?) -> CGFloat { rightWidth(label: label) - ear }
 
     var expandedSize: NSSize {
         NSSize(width: max(notchWidth + 2 * ear + 96, 380), height: notchHeight + 184)
     }
 
     /// Den svarta formens storlek i olika lägen
-    func shapeSize(expanded: Bool, showsLabel: Bool) -> NSSize {
+    func shapeSize(expanded: Bool, label: String?) -> NSSize {
         if expanded { return expandedSize }
-        return NSSize(width: notchWidth + 2 * ear + (showsLabel ? Self.labelRoom : 0), height: notchHeight)
+        return NSSize(width: notchWidth + 2 * ear + labelRoom(label), height: notchHeight)
     }
 
     /// Hur långt formen förskjuts åt höger från mitten (statustexten växer bara åt höger)
-    func shapeOffset(expanded: Bool, showsLabel: Bool) -> CGFloat {
-        (!expanded && showsLabel) ? Self.labelRoom / 2 : 0
+    func shapeOffset(expanded: Bool, label: String?) -> CGFloat {
+        expanded ? 0 : labelRoom(label) / 2
     }
 
     /// Fönstret har ALLTID samma storlek. Det stoppar fladdret som uppstår
     /// när ett fönster byter storlek under muspekaren.
     var canvas: NSRect {
-        let collapsedHalf = notchWidth / 2 + ear + Self.labelRoom
+        let collapsedHalf = notchWidth / 2 + ear + Self.maxLabelRoom
         let w = max(expandedSize.width, 2 * collapsedHalf)
         let h = expandedSize.height
         return NSRect(x: screenFrame.midX - w / 2, y: screenFrame.maxY - h, width: w, height: h)
     }
 
     /// Formens yta i skärmkoordinater (för att avgöra om musen är över den)
-    func shapeRect(expanded: Bool, showsLabel: Bool) -> NSRect {
-        let s = shapeSize(expanded: expanded, showsLabel: showsLabel)
-        let cx = screenFrame.midX + shapeOffset(expanded: expanded, showsLabel: showsLabel)
+    func shapeRect(expanded: Bool, label: String?) -> NSRect {
+        let s = shapeSize(expanded: expanded, label: label)
+        let cx = screenFrame.midX + shapeOffset(expanded: expanded, label: label)
         return NSRect(x: cx - s.width / 2, y: screenFrame.maxY - s.height, width: s.width, height: s.height)
     }
 }
@@ -97,7 +116,7 @@ struct NotchView: View {
     var body: some View {
         let expanded = store.expanded
         let label = store.shortStatus
-        let size = geometry.shapeSize(expanded: expanded, showsLabel: label != nil)
+        let size = geometry.shapeSize(expanded: expanded, label: label)
         VStack(spacing: 0) {
             ZStack(alignment: .top) {
                 NotchShape(radius: expanded ? 22 : 10)
@@ -116,7 +135,7 @@ struct NotchView: View {
             }
             .frame(width: size.width, height: size.height)
             .contentShape(Rectangle())
-            .offset(x: geometry.shapeOffset(expanded: expanded, showsLabel: label != nil))
+            .offset(x: geometry.shapeOffset(expanded: expanded, label: label))
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -128,21 +147,27 @@ struct NotchView: View {
 
     private func collapsedContent(label: String?) -> some View {
         HStack(spacing: 0) {
+            // Vänster öra: maskoten
             MascotView(skin: skin(), state: store.state, level: voice.level)
-                .frame(width: geometry.notchHeight + 2, height: geometry.notchHeight - 2)
-                .padding(.leading, 6)
-            Spacer(minLength: 0)
-            HStack(spacing: 6) {
+                .frame(width: geometry.notchHeight - 2, height: geometry.notchHeight - 4)
+                .frame(width: geometry.ear)
+            // Den fysiska notchen: här kan inget synas
+            Color.clear.frame(width: geometry.notchWidth)
+            // Höger del: text och prick, alltid till höger om notchen
+            HStack(spacing: NotchGeometry.gap) {
                 if let label {
                     Text(label)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Font(NotchGeometry.labelFont))
                         .foregroundStyle(statusColor)
                         .lineLimit(1)
-                        .fixedSize()
+                        .truncationMode(.tail)
                 }
+                Spacer(minLength: 0)
                 statusDot
             }
-            .padding(.trailing, 10)
+            .padding(.leading, label == nil ? 0 : NotchGeometry.rightLead)
+            .padding(.trailing, NotchGeometry.rightTrail)
+            .frame(width: geometry.rightWidth(label: label))
         }
         .frame(height: geometry.notchHeight)
     }
@@ -174,7 +199,7 @@ struct NotchView: View {
             }
             Circle().fill(color).frame(width: 7, height: 7)
         }
-        .frame(width: 15, height: 15)
+        .frame(width: NotchGeometry.dotWidth, height: NotchGeometry.dotWidth)
         .help(store.usage.fiveHour.map { "\(Int($0.rounded())) % av 5-timmarsgränsen använd" } ?? "")
     }
 
