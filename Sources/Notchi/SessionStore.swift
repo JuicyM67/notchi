@@ -122,6 +122,15 @@ final class SessionStore: ObservableObject {
         if u != usage { usage = u; u.save() }
     }
 
+    /// Värden från den direkta hämtningen (UsagePoller)
+    func applyPolled(_ r: UsagePoller.Result) {
+        var u = usage
+        if let f = r.fiveHour { u.fiveHour = f; u.fiveHourReset = r.fiveReset }
+        if let s = r.sevenDay { u.sevenDay = s; u.sevenDayReset = r.sevenReset }
+        u.updated = Date()
+        if u != usage { usage = u; u.save() }
+    }
+
     /// Sessioner som inte hörts av på länge räknas inte längre som aktiva
     func expireStale() {
         var u = usage; u.dropExpired(); if u != usage { usage = u }

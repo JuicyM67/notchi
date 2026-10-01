@@ -25,6 +25,7 @@ struct Config: Codable {
     var speakEvents: Bool = true         // läs upp godkännanden/klart
     var voiceApprovals: Bool = true      // tillåt "ja"/"nej" med rösten (känsliga kommandon kräver alltid klick)
     var language: String = "sv-SE"
+    var usagePolling: Bool = true        // hämta användning var 5:e min (fungerar även i appen och VS Code)
 
     static let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".notchi")
     static let file = dir.appendingPathComponent("config.json")
@@ -83,5 +84,6 @@ extension Config {
         speakEvents = try c.decodeIfPresent(Bool.self, forKey: .speakEvents) ?? d.speakEvents
         voiceApprovals = try c.decodeIfPresent(Bool.self, forKey: .voiceApprovals) ?? d.voiceApprovals
         language = try c.decodeIfPresent(String.self, forKey: .language) ?? d.language
+        usagePolling = try c.decodeIfPresent(Bool.self, forKey: .usagePolling) ?? d.usagePolling
     }
 }

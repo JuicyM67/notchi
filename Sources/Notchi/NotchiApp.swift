@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkey: Hotkey!
     private var statusItem: NSStatusItem!
     private var cancellables = Set<AnyCancellable>()
+    private let usagePoller = UsagePoller()
 
     private var skin: Skin { Skin(rawValue: config.skin) ?? .pim }
 
@@ -37,6 +38,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.speaker.stop(); self.store.speaking = false; self.store.bubble = nil
             } else {
                 self.say(self.store.spokenStatus())
+                if self.config.usagePolling, (self.store.usage.updated ?? .distantPast).timeIntervalSinceNow < -60 {
+                    Task { @MainActor in
+                        if let r = await self.usagePoller.fetch() { self.store.applyPolled(r) }
+                    }
+                }
             }
         }
 
@@ -67,6 +73,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Livlina: kolla varannan sekund att fönstret syns
         Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.watchdog() }
+        }
+        // Användning: hämta direkt var 5:e minut (fungerar oavsett var du kör Claude Code)
+        if config.usagePolling {
+            Task { @MainActor [weak self] in
+                while let self, self.config.usagePolling {
+                    if let r = await self.usagePoller.fetch() { self.store.applyPolled(r) }
+                    try? await Task.sleep(for: .seconds(300))
+                }
+            }
         }
         // Musen: avgör själva om den är över notchen (20 ggr/s), med små fördröjningar mot fladder
         Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
