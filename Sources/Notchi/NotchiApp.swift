@@ -30,6 +30,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         brain = Brain(config: config, lastCwd: { [weak self] in await self?.store.mostRecentCwd })
 
         store.say = { [weak self] text in self?.say(text) }
+        // Peta på Notchi: berätta läget (eller tystna om den redan pratar)
+        store.onPoke = { [weak self] in
+            guard let self else { return }
+            if self.store.speaking {
+                self.speaker.stop(); self.store.speaking = false; self.store.bubble = nil
+            } else {
+                self.say(self.store.spokenStatus())
+            }
+        }
 
         setupPanel()
         setupMenu()
@@ -70,6 +79,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hosting: NSHostingView<NotchView>!
     private var enteredAt: Date?
     private var leftAt: Date?
+    private var wasDismissed = false
+    private var mustLeaveFirst = false   // efter "fäll ihop": öppna inte igen förrän musen lämnat notchen
 
     private func setupPanel() {
         panel = NotchPanel()
@@ -119,12 +130,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func trackMouse() {
         let mouse = NSEvent.mouseLocation
         let now = Date()
+        // Precis fälld ihop med knappen? Kräv att musen lämnar notchen innan den kan öppnas igen.
+        if store.dismissed && !wasDismissed { mustLeaveFirst = true }
+        wasDismissed = store.dismissed
         if !store.hovering {
             // Öppna när musen vilat på notchen en kort stund
             let zone = geometry.shapeRect(expanded: false, showsLabel: store.shortStatus != nil).insetBy(dx: -2, dy: -3)
-            if zone.contains(mouse) {
+            if mustLeaveFirst {
+                if !zone.contains(mouse) && !geometry.shapeRect(expanded: true, showsLabel: true).contains(mouse) {
+                    mustLeaveFirst = false
+                }
+                enteredAt = nil
+            } else if zone.contains(mouse) {
                 if enteredAt == nil { enteredAt = now }
-                if now.timeIntervalSince(enteredAt!) > 0.12 { store.hovering = true; leftAt = nil }
+                if now.timeIntervalSince(enteredAt!) > 0.12 {
+                    store.hovering = true; store.dismissed = false; leftAt = nil
+                }
             } else {
                 enteredAt = nil
             }
@@ -207,7 +228,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func say(_ text: String) {
         guard !text.isEmpty else { return }
+        store.dismissed = false
         store.bubble = text
+        // Säkerhetsnät: bubblan försvinner senast efter 25 s även om rösten aldrig säger "klar"
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(25))
+            if self?.store.bubble == text { self?.store.bubble = nil; self?.store.speaking = false }
+        }
         store.speaking = true
         speaker.speak(text)
     }
@@ -219,6 +246,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         speaker.stop()
         store.speaking = false
         store.listening = true
+        store.dismissed = false
         store.bubble = "Jag lyssnar…"
         listener.start()
     }
@@ -248,7 +276,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .stopTalking:
             speaker.stop(); store.speaking = false; store.bubble = nil
         case .status:
-            say(store.statusSummary())
+            say(store.spokenStatus())
         case .openFolder(let name):
             say(await Task.detached { LocalTools.openFolder(name) }.value)
         case .launchApp(let name):

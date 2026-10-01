@@ -33,6 +33,23 @@ struct HookEvent {
         return t.isEmpty ? nil : String(t.prefix(4000))
     }
 
+    /// En kort detalj som låter bra uppläst: filnamn eller kommandots första ord
+    var spokenDetail: String? {
+        switch toolName ?? "" {
+        case "Edit", "Write", "MultiEdit", "NotebookEdit", "Read":
+            let f = ((toolInput["file_path"] as? String ?? toolInput["notebook_path"] as? String ?? "") as NSString).lastPathComponent
+            return f.isEmpty ? nil : f
+        case "Bash":
+            let cmd = (toolInput["command"] as? String ?? "").trimmingCharacters(in: .whitespaces)
+            let first = cmd.split(separator: " ").first.map(String.init) ?? ""
+            return first.isEmpty ? nil : first
+        case "WebSearch":
+            return toolInput["query"] as? String
+        default:
+            return nil
+        }
+    }
+
     /// Ett eller två ord om vad verktyget gör, för notchen
     var shortLabel: String {
         let t = toolName ?? ""

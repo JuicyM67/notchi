@@ -91,6 +91,7 @@ struct NotchView: View {
             ZStack(alignment: .top) {
                 NotchShape(radius: expanded ? 22 : 10)
                     .fill(Color.black)
+                    .onTapGesture { store.onPoke?() }
                 if expanded {
                     expandedContent
                         .padding(.top, geometry.notchHeight + 8)
@@ -162,7 +163,9 @@ struct NotchView: View {
         HStack(alignment: .top, spacing: 14) {
             MascotView(skin: skin(), state: store.state, level: voice.level)
                 .frame(width: 72, height: 72)
-                .onTapGesture { store.pinned.toggle() }
+                .contentShape(Rectangle())
+                .onTapGesture { store.onPoke?() }
+                .help("Klicka så berättar jag vad som händer")
 
             VStack(alignment: .leading, spacing: 8) {
                 if let p = store.pending.first {
@@ -176,16 +179,30 @@ struct NotchView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Button { store.pinned.toggle() } label: {
-                Image(systemName: store.pinned ? "pin.fill" : "pin")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white.opacity(store.pinned ? 0.95 : 0.5))
-                    .frame(width: 26, height: 26)
-                    .contentShape(Rectangle())
+            VStack(spacing: 4) {
+                Button { store.dismiss() } label: {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.75))
+                        .frame(width: 28, height: 28)
+                        .background(Color.white.opacity(0.08), in: Circle())
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Fäll ihop")
+                .accessibilityLabel("Fäll ihop notchen")
+
+                Button { store.pinned.toggle() } label: {
+                    Image(systemName: store.pinned ? "pin.fill" : "pin")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(store.pinned ? 0.95 : 0.5))
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(store.pinned ? "Släpp (stängs när musen lämnar)" : "Håll öppen")
+                .accessibilityLabel(store.pinned ? "Släpp notchen" : "Håll notchen öppen")
             }
-            .buttonStyle(.plain)
-            .help(store.pinned ? "Släpp (stängs när musen lämnar)" : "Håll öppen")
-            .accessibilityLabel(store.pinned ? "Släpp notchen" : "Håll notchen öppen")
         }
     }
 
