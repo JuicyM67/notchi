@@ -453,15 +453,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             say(await Task.detached { LocalTools.findFiles(q).summary }.value)
         case .runShortcut(let name):
             say(await Task.detached { LocalTools.runShortcut(name) }.value)
+        case .media(let action):
+            say(await Task.detached { LocalTools.media(action) }.value)
         case .askClaude(let q):
-            store.thinkingLocally = true
-            store.bubble = "Hmm…"
-            let answer = await brain.ask(q) { @MainActor [weak self] progress in
-                self?.say(progress)
+            // Flera enkla steg i rad? ("öppna Spotify och spela musik") – gör dem lokalt, gratis
+            if let steps = IntentRouter.chain(q) {
+                for (i, step) in steps.enumerated() {
+                    if i > 0 { try? await Task.sleep(for: .seconds(1.2)) }   // låt förra appen hinna starta
+                    await perform(step, quiet: i < steps.count - 1)
+                }
+                return
             }
-            store.thinkingLocally = false
-            say(answer)
+            store.thinkingLocally = true
+            if config.brain == "api", config.resolvedAnthropicKey != nil {
+                store.bubble = "Hmm…"
+                let answer = await brain.ask(q) { @MainActor [weak self] progress in
+                    self?.say(progress)
+                }
+                store.thinkingLocally = false
+                say(answer)
+            } else {
+                // Claude Code gör jobbet, med ditt abonnemang
+                store.dismissed = false
+                store.bubble = "Fixar det…"
+                let ctx = ClaudeAgent.gatherContext(recentProject: store.mostRecentCwd)
+                let model = config.agentModel
+                let answer = await Task.detached { ClaudeAgent.run(q, context: ctx, model: model) }.value
+                store.thinkingLocally = false
+                say(answer)
+            }
         }
+    }
+
+    /// Ett lokalt steg i en kedja; bara sista steget pratar
+    private func perform(_ intent: LocalIntent, quiet: Bool) async {
+        let reply: String
+        switch intent {
+        case .openFolder(let n): reply = await Task.detached { LocalTools.openFolder(n) }.value
+        case .launchApp(let n): reply = await Task.detached { LocalTools.launchApp(n) }.value
+        case .openAny(let n):
+            reply = await Task.detached { () -> String in
+                let app = LocalTools.launchApp(n)
+                return app.hasPrefix("Jag hittade") ? LocalTools.openFolder(n) : app
+            }.value
+        case .findFile(let q): reply = await Task.detached { LocalTools.findFiles(q).summary }.value
+        case .runShortcut(let n): reply = await Task.detached { LocalTools.runShortcut(n) }.value
+        case .media(let a): reply = await Task.detached { LocalTools.media(a) }.value
+        case .status: reply = store.spokenStatus()
+        case .usage: reply = store.usageSentence() ?? ""
+        default: reply = ""
+        }
+        if !quiet && !reply.isEmpty { say(reply) }
     }
 }
 

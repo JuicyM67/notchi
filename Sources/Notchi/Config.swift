@@ -7,6 +7,10 @@ import Foundation
 ///  - enkla kommandon (öppna/starta/hitta/godkänn) hanteras lokalt utan API-anrop
 ///  - frågor går till Claude Haiku med korta svar och högst 1 webbsökning
 struct Config: Codable {
+    /// Vem som tar hand om det Notchi inte klarar själv:
+    /// "claudeCode" = Claude Code med ditt abonnemang (ingen API-nyckel), "api" = Claude API med nyckel
+    var brain: String = "claudeCode"
+    var agentModel: String = "haiku"     // modell för Claude Code-uppdrag (haiku drar minst av din kvot)
     var anthropicApiKey: String? = nil
     var model: String = "claude-haiku-4-5-20251001"
     var maxTokens: Int = 350
@@ -74,6 +78,8 @@ extension Config {
         let d = Config()
         let c = try decoder.container(keyedBy: CodingKeys.self)
         anthropicApiKey = try c.decodeIfPresent(String.self, forKey: .anthropicApiKey)
+        brain = try c.decodeIfPresent(String.self, forKey: .brain) ?? d.brain
+        agentModel = try c.decodeIfPresent(String.self, forKey: .agentModel) ?? d.agentModel
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? d.model
         maxTokens = try c.decodeIfPresent(Int.self, forKey: .maxTokens) ?? d.maxTokens
         webSearch = try c.decodeIfPresent(Bool.self, forKey: .webSearch) ?? d.webSearch

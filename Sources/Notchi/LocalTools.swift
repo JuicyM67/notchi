@@ -84,6 +84,34 @@ enum LocalTools {
         return out.isEmpty ? "Körde genvägen \(name)." : out
     }
 
+    // MARK: Musik (Spotify om det finns, annars Musik) – gratis och direkt via AppleScript
+
+    enum Media { case play, pause, toggle, next, previous }
+
+    static func media(_ action: Media) -> String {
+        let spotify = FileManager.default.fileExists(atPath: "/Applications/Spotify.app")
+            || NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == "com.spotify.client" }
+        let app = spotify ? "Spotify" : "Music"
+        let verb: String
+        let reply: String
+        switch action {
+        case .play:     verb = "play";             reply = "Spelar musik."
+        case .pause:    verb = "pause";            reply = "Pausat."
+        case .toggle:   verb = "playpause";        reply = "Okej."
+        case .next:     verb = "next track";       reply = "Nästa låt."
+        case .previous: verb = "previous track";   reply = "Förra låten."
+        }
+        let script = """
+        tell application "\(app)"
+            if not running then launch
+            delay 0.8
+            \(verb)
+        end tell
+        """
+        _ = run("/usr/bin/osascript", ["-e", script], timeout: 10)
+        return reply
+    }
+
     // MARK: Delegera till Claude Code (använder ditt Claude-abonnemang, inte API-krediter)
 
     static func askClaudeCode(_ prompt: String, cwd: String?) -> String {

@@ -41,6 +41,7 @@ Första gången frågar macOS om mikrofon och taligenkänning – svara ja.
 | Prata | Håll **⌃⌥ Mellanslag**, prata, släpp |
 | Byta karaktär | ●-ikonen i menyraden → välj Pim, Oda, Bo eller Kix |
 | Väcka med rösten | Slå på *Lyssna efter ”Hej Notchi”* i menyn (av som standard, mikrofonen är då alltid på). Säg sedan ”Hej Notchi, vad gör Claude?” |
+| Styra datorn | ”Spela musik”, ”pausa”, ”nästa låt”, ”öppna Spotify och spela musik” (lokalt, direkt). Allt annat, t.ex. ”öppna VS Code och skapa en mapp här som heter kundportal”, utför Claude Code med ditt abonnemang – ingen API-nyckel |
 | Välja hur händelser hörs | Menyn → *När något händer*: Systemljud (standard), Röst eller Tyst |
 | Hoppa till en session | Klicka på sessionen i utfälld vy: rätt app öppnas, i VS Code rätt projektfönster |
 | Höra läget | Klicka på maskoten eller notchen; klicka igen för att tysta |

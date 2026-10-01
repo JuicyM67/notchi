@@ -11,11 +11,30 @@ enum LocalIntent {
     case runShortcut(String)
     case status
     case usage
+    case media(LocalTools.Media)
     case stopTalking
     case askClaude(String)        // allt annat
 }
 
 enum IntentRouter {
+    /// "Öppna Spotify och spela musik" → flera lokala steg, om ALLA delar går att göra lokalt.
+    /// Annars nil: då får Claude Code ta hela meningen.
+    static func chain(_ raw: String) -> [LocalIntent]? {
+        let parts = raw.lowercased()
+            .replacingOccurrences(of: #"\s*(,\s*)?\b(och sen|och sedan|och|sen|sedan|därefter)\b\s*"#, with: "|", options: .regularExpression)
+            .split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard parts.count > 1 else { return nil }
+        var out: [LocalIntent] = []
+        for p in parts {
+            let i = parse(p, hasPending: false)
+            switch i {
+            case .askClaude, .approve, .deny, .stopTalking: return nil
+            default: out.append(i)
+            }
+        }
+        return out
+    }
+
     static func parse(_ raw: String, hasPending: Bool) -> LocalIntent {
         let t = raw.lowercased()
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -26,6 +45,12 @@ enum IntentRouter {
             if match(t, #"^(nej|neka|stopp|stoppa|avbryt|nix|vänta)( det| tack)?$"#) { return .deny }
         }
         if match(t, #"^(tyst|sluta prata|shh+|var tyst)"#) { return .stopTalking }
+
+        // Musik: bara korta, entydiga kommandon. "Spela X" (en viss låt) går till Claude Code.
+        if match(t, #"^(spela musik|spela upp musik|sätt på musik(en)?|starta musik(en)?|spela|play|fortsätt spela)$"#) { return .media(.play) }
+        if match(t, #"^(pausa|paus|pausa musik(en)?|stoppa musik(en)?|stäng av musik(en)?)$"#) { return .media(.pause) }
+        if match(t, #"^(nästa|nästa låt|hoppa över|skippa)( låt(en)?)?$"#) { return .media(.next) }
+        if match(t, #"^(förra|förra låten|föregående( låt)?|tillbaka en låt)$"#) { return .media(.previous) }
         if match(t, #"(användning|hur mycket (har jag )?(kvar|använt)|gräns|usage)"#) { return .usage }
         if match(t, #"(vad gör (claude|du)|hur går det|status|vad händer)"#) { return .status }
 

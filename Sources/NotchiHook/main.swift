@@ -41,6 +41,8 @@ func hostApp() -> String? {
     }
     return nil
 }
+// Uppdrag som Notchi själv skickat till Claude Code märks, så att appen kan visa dem som "Notchi"
+if ProcessInfo.processInfo.environment["NOTCHI_AGENT"] == "1" { json["notchi_agent"] = true }
 if !isStatusLine, ["SessionStart", "UserPromptSubmit", "PermissionRequest"].contains(json["hook_event_name"] as? String ?? ""),
    let app = hostApp() {
     json["notchi_app"] = app

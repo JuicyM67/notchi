@@ -257,6 +257,8 @@ final class SessionStore: ObservableObject {
                                                       skin: nextSkin())
         s.updated = Date()
         if let app = e.raw["notchi_app"] as? String, !app.isEmpty { s.appPath = app }
+        let isAgent = e.raw["notchi_agent"] as? Bool == true
+        if isAgent { s.project = "Notchi" }
         if !e.cwd.isEmpty { s.cwd = e.cwd; s.project = e.projectName }
 
         switch e.name {
@@ -292,7 +294,7 @@ final class SessionStore: ObservableObject {
             justFinished = Date()
             completions.append(Date())
             completions.removeAll { Date().timeIntervalSince($0) > 3 * 3600 }
-            announce(Narrator.done(project: s.project), sound: "Glass")
+            if !isAgent { announce(Narrator.done(project: s.project), sound: "Glass") }
             // Uppdatera vyn igen när "klar"-glädjen har gått över
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(6.5))
