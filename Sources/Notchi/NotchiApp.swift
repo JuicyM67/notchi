@@ -200,8 +200,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .askClaude(let q):
             store.thinkingLocally = true
             store.bubble = "Hmm…"
-            let answer = await brain.ask(q) { [weak self] progress in
-                await MainActor.run { self?.say(progress) }
+            let answer = await brain.ask(q) { @MainActor [weak self] progress in
+                self?.say(progress)
             }
             store.thinkingLocally = false
             say(answer)
