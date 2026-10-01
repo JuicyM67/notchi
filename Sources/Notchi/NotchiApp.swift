@@ -17,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var cancellables = Set<AnyCancellable>()
     private let usagePoller = UsagePoller()
+    private var wake: WakeWord!
+    private var wakePausedForSpeech = false
 
     private var skin: Skin { Skin(rawValue: config.skin) ?? .pim }
 
@@ -46,6 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        store.onJump = { [weak self] s in self?.jump(to: s) }
+
+        setupWake()
         setupPanel()
         setupMenu()
 
@@ -114,6 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         guard let self else { return }
                         let ignore = !self.store.expanded
                         if self.panel.ignoresMouseEvents != ignore { self.panel.ignoresMouseEvents = ignore }
+                        self.syncWakeWithSpeech()
                     }
                 }
             }
@@ -121,7 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func makeView() -> NotchView {
-        NotchView(store: store, voice: voiceState, geometry: geometry, skin: { [weak self] in self?.skin ?? .pim })
+        NotchView(store: store, voice: voiceState, geometry: geometry)
     }
 
     private func bringToFront() {
@@ -193,6 +199,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let speak = NSMenuItem(title: "Läs upp händelser", action: #selector(toggleSpeak(_:)), keyEquivalent: "")
         speak.target = self; speak.state = config.speakEvents ? .on : .off
         menu.addItem(speak)
+        let wakeItem = NSMenuItem(title: "Lyssna efter ”Hej Notchi”", action: #selector(toggleWake(_:)), keyEquivalent: "")
+        wakeItem.target = self; wakeItem.state = config.wakeWord ? .on : .off
+        menu.addItem(wakeItem)
         let cfg = NSMenuItem(title: "Öppna inställningar…", action: #selector(openConfig), keyEquivalent: ",")
         cfg.target = self
         menu.addItem(cfg)
@@ -204,6 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func pickSkin(_ sender: NSMenuItem) {
         config.skin = sender.representedObject as? String ?? "pim"
         config.save()
+        store.config = config
         sender.menu?.items.forEach { if $0.representedObject != nil { $0.state = ($0 === sender) ? .on : .off } }
         store.objectWillChange.send()
         say("Hej! Nu ser jag ut så här.")
@@ -213,6 +223,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         config.speakEvents.toggle(); config.save()
         store.config = config
         sender.state = config.speakEvents ? .on : .off
+    }
+
+    @objc private func toggleWake(_ sender: NSMenuItem) {
+        config.wakeWord.toggle(); config.save()
+        store.config = config
+        sender.state = config.wakeWord ? .on : .off
+        applyWakeSetting(announce: true)
     }
 
     @objc private func openConfig() {
@@ -254,10 +271,89 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         speaker.speak(text)
     }
 
+    // MARK: Hej Notchi
+
+    private func setupWake() {
+        wake = WakeWord(language: config.language)
+        wake.onWake = { [weak self] in
+            guard let self else { return }
+            NSSound(named: "Tink")?.play()
+            self.store.listening = true
+            self.store.dismissed = false
+            self.store.bubble = "Ja?"
+        }
+        wake.onPartial = { [weak self] text in self?.store.bubble = text.isEmpty ? "Ja?" : text }
+        wake.onCommand = { [weak self] text in
+            guard let self else { return }
+            self.store.listening = false
+            Task { @MainActor in
+                if text.isEmpty { self.say(self.store.spokenStatus()) } else { await self.handle(text) }
+                self.wake.resume(.command)
+            }
+        }
+        // Vänta lite så att behörighetsfrågorna hinner besvaras
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            self?.applyWakeSetting(announce: false)
+        }
+    }
+
+    private func applyWakeSetting(announce: Bool) {
+        if config.wakeWord && !wake.supported {
+            wake.setEnabled(false)
+            if announce || !UserDefaults.standard.bool(forKey: "notchi.wakeUnsupportedShown") {
+                UserDefaults.standard.set(true, forKey: "notchi.wakeUnsupportedShown")
+                store.showBubble("”Hej Notchi” kräver svensk taligenkänning på enheten. Slå på Diktering i Systeminställningar → Tangentbord och starta om Notchi.", seconds: 14)
+            }
+            return
+        }
+        wake.setEnabled(config.wakeWord)
+        if announce { say(config.wakeWord ? "Nu lyssnar jag efter hej Notchi." : "Okej, jag slutar lyssna.") }
+    }
+
+    /// Lyssna inte medan Notchi själv pratar, så den inte väcker sig själv
+    private func syncWakeWithSpeech() {
+        guard let wake else { return }
+        if store.speaking {
+            if !wakePausedForSpeech { wakePausedForSpeech = true; wake.pause(.speaking) }
+        } else if wakePausedForSpeech {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(600))   // låt ekot från högtalarna dö ut
+                guard let self, !self.store.speaking, self.wakePausedForSpeech else { return }
+                self.wakePausedForSpeech = false
+                self.wake.resume(.speaking)
+            }
+        }
+    }
+
+    // MARK: Hoppa till sessionen
+
+    private func jump(to s: SessionInfo) {
+        let folder = URL(fileURLWithPath: s.cwd)
+        guard let path = s.appPath else {
+            if !s.cwd.isEmpty { NSWorkspace.shared.open(folder) }
+            return
+        }
+        let app = URL(fileURLWithPath: path)
+        let name = app.deletingPathExtension().lastPathComponent.lowercased()
+        let editors = ["visual studio code", "code", "cursor", "windsurf", "vscodium", "zed"]
+        if editors.contains(where: { name.contains($0) }), !s.cwd.isEmpty {
+            // Editorer: öppna projektmappen, så hamnar du i rätt fönster
+            NSWorkspace.shared.open([folder], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+        } else if let running = NSWorkspace.shared.runningApplications.first(where: { $0.bundleURL?.path == path }) {
+            running.activate()
+        } else {
+            NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration())
+        }
+        store.hovering = false
+        store.pinned = false
+    }
+
     // MARK: Prata med Notchi
 
     private func startListening() {
         guard !store.listening else { return }
+        wake?.pause(.hotkey)
         speaker.stop()
         store.speaking = false
         store.listening = true
@@ -271,6 +367,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             let text = await listener.finish()
             store.listening = false
+            defer { wake?.resume(.hotkey) }
             guard !text.isEmpty else { store.bubble = nil; return }
             await handle(text)
         }

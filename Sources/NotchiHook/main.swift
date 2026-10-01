@@ -14,6 +14,37 @@ let input = FileHandle.standardInput.readDataToEndOfFile()
 guard !input.isEmpty,
       var json = try? JSONSerialization.jsonObject(with: input) as? [String: Any] else { exit(0) }
 if isStatusLine { json["hook_event_name"] = "StatusLine" }
+
+/// Vilken app körs sessionen i? Gå uppåt bland föräldraprocesserna tills vi hittar
+/// en .app (Terminal, iTerm, Visual Studio Code, Claude …). Används för "hoppa dit".
+func parentPID(_ pid: pid_t) -> pid_t? {
+    var info = kinfo_proc()
+    var size = MemoryLayout<kinfo_proc>.stride
+    var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+    guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0 else { return nil }
+    let pp = info.kp_eproc.e_ppid
+    return pp > 1 ? pp : nil
+}
+func executablePath(_ pid: pid_t) -> String? {
+    var buf = [CChar](repeating: 0, count: 4 * 1024)
+    let n = proc_pidpath(pid, &buf, UInt32(buf.count))
+    return n > 0 ? String(cString: buf) : nil
+}
+func hostApp() -> String? {
+    var pid = getppid()
+    for _ in 0..<40 {
+        if let p = executablePath(pid), let r = p.range(of: ".app/") {
+            return String(p[..<r.lowerBound]) + ".app"     // yttersta .app, t.ex. "Visual Studio Code.app"
+        }
+        guard let pp = parentPID(pid) else { break }
+        pid = pp
+    }
+    return nil
+}
+if !isStatusLine, ["SessionStart", "UserPromptSubmit", "PermissionRequest"].contains(json["hook_event_name"] as? String ?? ""),
+   let app = hostApp() {
+    json["notchi_app"] = app
+}
 let event = json["hook_event_name"] as? String ?? ""
 let waitForReply = event == "PermissionRequest"
 

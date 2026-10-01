@@ -16,6 +16,8 @@ struct SessionInfo: Identifiable {
     var detail: String? = nil       // "App.swift", "npm", …
     var working: Bool
     var updated: Date
+    var skin: Skin = .pim           // varje session har sin egen karaktär
+    var appPath: String? = nil      // appen sessionen körs i (Terminal, VS Code, Claude …)
 }
 
 /// Claude-användning från Claude Codes statusrad (bara Pro/Max)
@@ -65,6 +67,11 @@ final class SessionStore: ObservableObject {
     @Published var dismissed = false              // du stängde den: öppna inte av sig själv förrän något nytt händer
     /// Klick på maskoten
     var onPoke: (() -> Void)?
+    /// Klick på en session i listan
+    var onJump: ((SessionInfo) -> Void)?
+    /// Avklarade uppgifter (för humöret "stolt")
+    private var completions: [Date] = []
+    private var lastMood: Mood = .normal
 
     /// Anropas när något ska sägas högt.
     var say: ((String) -> Void)?
@@ -80,6 +87,44 @@ final class SessionStore: ObservableObject {
         if sessions.values.contains(where: { $0.working }) { return .working }
         if let t = justFinished, Date().timeIntervalSince(t) < 6 { return .done }
         return .idle
+    }
+
+    /// Din valda karaktär (menyn) – används när inget pågår och för första sessionen
+    var preferredSkin: Skin { Skin(rawValue: config.skin) ?? .pim }
+
+    /// Ny session: din valda karaktär om den är ledig, annars nästa lediga i gänget
+    private func nextSkin() -> Skin {
+        let used = Set(sessions.values.map(\.skin))
+        let order = [preferredSkin] + Skin.allCases.filter { $0 != preferredSkin }
+        return order.first { !used.contains($0) } ?? order[sessions.count % order.count]
+    }
+
+    /// Den session som är viktigast just nu: den som väntar på dig, annars den som jobbar
+    var primarySession: SessionInfo? {
+        if let p = pending.first, let s = sessions[p.event.sessionId] { return s }
+        if let s = sessions.values.filter({ $0.working }).max(by: { $0.updated < $1.updated }) { return s }
+        return sessions.values.filter { Date().timeIntervalSince($0.updated) < 600 }.max(by: { $0.updated < $1.updated })
+    }
+
+    /// Karaktären som syns i notchen
+    var primarySkin: Skin { primarySession?.skin ?? preferredSkin }
+
+    /// Uttrycket för en enskild session i listan
+    func state(for s: SessionInfo) -> MascotState {
+        if pending.contains(where: { $0.event.sessionId == s.id }) { return .needsApproval }
+        if s.working { return s.short == "Tänker…" ? .thinking : .working }
+        if s.short == "Klar", Date().timeIntervalSince(s.updated) < 6 { return .done }
+        return .idle
+    }
+
+    /// Humöret över dagen
+    var mood: Mood {
+        if (usage.fiveHour ?? 0) >= 90 || (usage.sevenDay ?? 0) >= 95 { return .stressed }
+        let recent = completions.filter { Date().timeIntervalSince($0) < 90 * 60 }.count
+        if recent >= 4 { return .proud }
+        let h = Calendar.current.component(.hour, from: Date())
+        if h < 8 || h >= 23 { return .sleepy }
+        return .normal
     }
 
     var expanded: Bool {
@@ -119,7 +164,7 @@ final class SessionStore: ObservableObject {
         let (f, fr) = read("five_hour"); if let f { u.fiveHour = f; u.fiveHourReset = fr }
         let (s, sr) = read("seven_day"); if let s { u.sevenDay = s; u.sevenDayReset = sr }
         u.updated = Date()
-        if u != usage { usage = u; u.save() }
+        setUsage(u)
     }
 
     /// Värden från den direkta hämtningen (UsagePoller)
@@ -128,12 +173,54 @@ final class SessionStore: ObservableObject {
         if let f = r.fiveHour { u.fiveHour = f; u.fiveHourReset = r.fiveReset }
         if let s = r.sevenDay { u.sevenDay = s; u.sevenDayReset = r.sevenReset }
         u.updated = Date()
-        if u != usage { usage = u; u.save() }
+        setUsage(u)
+    }
+
+    private func setUsage(_ u: Usage) {
+        guard u != usage else { return }
+        usage = u
+        u.save()
+        warnIfNeeded(u)
+    }
+
+    // MARK: - Varning för gränsen (en gång per fönster, kommer ihåg det mellan omstarter)
+
+    private func warnIfNeeded(_ u: Usage) {
+        var lines: [String] = []
+        if let f = u.fiveHour {
+            if f >= 100, once("5h-100", u.fiveHourReset) {
+                lines.append("Nu är femtimmarsgränsen nådd. Du kan köra igen \(Narrator.when(u.fiveHourReset)).")
+            } else if f >= 80, f < 100, once("5h-80", u.fiveHourReset) {
+                lines.append("Du har använt \(Int(f.rounded())) procent av femtimmarsgränsen. Den nollställs \(Narrator.when(u.fiveHourReset)).")
+            }
+        }
+        if let w = u.sevenDay {
+            if w >= 100, once("7d-100", u.sevenDayReset) {
+                lines.append("Veckogränsen är nådd. Den nollställs \(Narrator.when(u.sevenDayReset)).")
+            } else if w >= 90, w < 100, once("7d-90", u.sevenDayReset) {
+                lines.append("Veckan ligger på \(Int(w.rounded())) procent. Den nollställs \(Narrator.when(u.sevenDayReset)).")
+            }
+        }
+        guard !lines.isEmpty else { return }
+        let text = lines.joined(separator: " ")
+        if config.speakEvents { say?(text) } else { showBubble(text, seconds: 12) }
+    }
+
+    /// true första gången för just det här fönstret (identifieras av när det nollställs)
+    private func once(_ key: String, _ reset: Date?) -> Bool {
+        let id = reset.map { String(Int($0.timeIntervalSince1970 / 60)) } ?? "okänd"
+        let defaults = UserDefaults.standard
+        var seen = defaults.dictionary(forKey: "notchi.warned") as? [String: String] ?? [:]
+        if seen[key] == id { return false }
+        seen[key] = id
+        defaults.set(seen, forKey: "notchi.warned")
+        return true
     }
 
     /// Sessioner som inte hörts av på länge räknas inte längre som aktiva
     func expireStale() {
         var u = usage; u.dropExpired(); if u != usage { usage = u }
+        if mood != lastMood { lastMood = mood; objectWillChange.send() }   // t.ex. när klockan slår 8
         let now = Date()
         for (id, s) in sessions where s.working && now.timeIntervalSince(s.updated) > 15 * 60 {
             sessions[id]?.working = false
@@ -150,8 +237,10 @@ final class SessionStore: ObservableObject {
     func handle(_ e: HookEvent, reply: HookReply?) {
         if e.name == "StatusLine" { updateUsage(from: e.raw, session: e.sessionId); return }
         var s = sessions[e.sessionId] ?? SessionInfo(id: e.sessionId, project: e.projectName, cwd: e.cwd,
-                                                      activity: "", working: false, updated: Date())
+                                                      activity: "", working: false, updated: Date(),
+                                                      skin: nextSkin())
         s.updated = Date()
+        if let app = e.raw["notchi_app"] as? String, !app.isEmpty { s.appPath = app }
         if !e.cwd.isEmpty { s.cwd = e.cwd; s.project = e.projectName }
 
         switch e.name {
@@ -187,6 +276,8 @@ final class SessionStore: ObservableObject {
             s.activity = ""
             if let m = e.lastAssistantMessage { s.lastMessage = m }
             justFinished = Date()
+            completions.append(Date())
+            completions.removeAll { Date().timeIntervalSince($0) > 3 * 3600 }
             if config.speakEvents { say?(Narrator.done(project: s.project)) }
             // Uppdatera vyn igen när "klar"-glädjen har gått över
             Task { @MainActor [weak self] in
@@ -232,8 +323,10 @@ final class SessionStore: ObservableObject {
             parts.append(Narrator.permission(p.event))
         }
         let sorted = sessions.values.sorted { $0.updated > $1.updated }
+        let many = sessions.count > 1
         for s in sorted.filter({ $0.working }).prefix(2) {
-            parts.append("I \(s.project) \(Narrator.doing(s)) just nu.")
+            parts.append(many ? "\(s.skin.name) i \(s.project): \(Narrator.doing(s, inverted: false)) just nu."
+                              : "I \(s.project) \(Narrator.doing(s)) just nu.")
         }
         if parts.isEmpty, let s = sorted.first {
             var line = s.short == "Väntar på dig"
@@ -247,9 +340,10 @@ final class SessionStore: ObservableObject {
         let others = sorted.filter { $0.working }.count - 2
         if others > 0 { parts.append("Och \(others) till jobbar.") }
         if let u = usageSentence(onlyIfHigh: !parts.isEmpty) { parts.append(u) }
-        if parts.isEmpty { return ["Det är lugnt just nu. Inga sessioner är igång.",
-                                   "Allt är tyst. Claude vilar.",
-                                   "Inget på gång just nu."].randomElement()! }
+        if parts.isEmpty { parts.append(["Det är lugnt just nu. Inga sessioner är igång.",
+                                         "Allt är tyst. Claude vilar.",
+                                         "Inget på gång just nu."].randomElement()!) }
+        if let m = Narrator.moodOpener(mood) { parts.insert(m, at: 0) }
         return parts.joined(separator: " ")
     }
 
@@ -297,7 +391,15 @@ enum Narrator {
     }
 
     /// "skriver kod i App.swift", "kör npm", "tänker", …
-    static func doing(_ s: SessionInfo) -> String {
+    /// inverted: "skriver Claude kod" (efter "I projekt"); annars "Claude skriver kod"
+    static func doing(_ s: SessionInfo, inverted: Bool = true) -> String {
+        guard inverted else {
+            let v = doing(s)                       // "skriver Claude kod i X"
+            if v.hasPrefix("har Claude") { return "Claude har" + v.dropFirst("har Claude".count) }
+            let parts = v.split(separator: " ", maxSplits: 2).map(String.init)
+            guard parts.count >= 2, parts[1] == "Claude" else { return v }
+            return "Claude " + parts[0] + (parts.count > 2 ? " " + parts[2] : "")
+        }
         let d = s.detail
         switch s.short {
         case "Kodar": return d.map { "skriver Claude kod i \($0)" } ?? "skriver Claude kod"
@@ -310,6 +412,31 @@ enum Narrator {
         case "Använder verktyg": return "använder Claude ett verktyg"
         case "Behöver dig": return "väntar Claude på ditt godkännande"
         default: return "tänker Claude"
+        }
+    }
+
+    /// "kl 14:30", "om 12 minuter", "på torsdag kl 09:00"
+    static func when(_ date: Date?) -> String {
+        guard let date else { return "snart" }
+        let secs = date.timeIntervalSinceNow
+        if secs <= 60 { return "alldeles strax" }
+        if secs < 3600 { return "om \(Int(secs / 60)) minuter" }
+        let f = DateFormatter(); f.locale = Locale(identifier: "sv_SE")
+        if Calendar.current.isDateInToday(date) { f.dateFormat = "HH:mm"; return "klockan \(f.string(from: date))" }
+        if Calendar.current.isDateInTomorrow(date) { f.dateFormat = "HH:mm"; return "i morgon klockan \(f.string(from: date))" }
+        f.dateFormat = "EEEE 'klockan' HH:mm"; return "på " + f.string(from: date)
+    }
+
+    /// En liten inledning efter humör, ibland
+    static func moodOpener(_ mood: Mood) -> String? {
+        guard Bool.random() else { return nil }
+        let h = Calendar.current.component(.hour, from: Date())
+        switch mood {
+        case .sleepy: return h < 12 ? ["Gääsp… god morgon.", "Morgon. Kaffe först?"].randomElement()
+                                    : ["Det börjar bli sent…", "Gääsp. Sent ikväll, va?"].randomElement()
+        case .proud: return ["Vilken fart idag!", "Det flyter på!"].randomElement()
+        case .stressed: return ["Oj, nu börjar det bli trångt.", "Puh, vi närmar oss gränsen."].randomElement()
+        case .normal: return nil
         }
     }
 

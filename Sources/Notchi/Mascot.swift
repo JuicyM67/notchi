@@ -5,6 +5,9 @@ enum Skin: String, CaseIterable, Identifiable {
     case pim, oda, bo, kix
     var id: String { rawValue }
 
+    /// Bara namnet: "Pim", "Oda", …
+    var name: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
+
     var displayName: String {
         switch self {
         case .pim: "Pim – mintgrön pebble med skott"
@@ -78,11 +81,26 @@ enum Skin: String, CaseIterable, Identifiable {
     }
 }
 
+/// Humöret över dagen. Påverkar mest hur maskoten ser ut när den vilar.
+enum Mood: String {
+    case normal
+    case sleepy     // tidig morgon och sen kväll: tunga ögonlock, gäspar, zzz
+    case proud      // många uppgifter klara på kort tid: gnistrar
+    case stressed   // användningen nära gränsen: svettdroppe, rör sig fortare
+}
+
 /// Animerad maskot. `level` = röst/mikrofonnivå 0–1.
 struct MascotView: View {
     let skin: Skin
     let state: MascotState
     var level: Float = 0
+    var mood: Mood = .normal
+
+    private var calm: Bool { state == .idle || state == .done }
+    /// Gäspar ca 1,6 s var 14:e sekund (bara sömnig och i vila)
+    private func yawning(_ t: Double) -> Bool {
+        mood == .sleepy && state == .idle && t.truncatingRemainder(dividingBy: 14) < 1.6
+    }
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { tl in
@@ -99,8 +117,9 @@ struct MascotView: View {
     private func draw(ctx: inout GraphicsContext, t: Double) {
         // Rörelse per tillstånd
         var bob = 0.0, squash = 1.0, tilt = 0.0
+        let pace = mood == .stressed ? 1.8 : (mood == .sleepy ? 0.6 : 1.0)
         switch state {
-        case .idle:          squash = 1 + 0.025 * sin(t * 2.0)
+        case .idle:          squash = 1 + 0.025 * sin(t * 2.0 * pace) + (yawning(t) ? 0.05 : 0)
         case .thinking:      bob = 2 * sin(t * 2.5)
         case .working:       bob = 2.5 * abs(sin(t * 6)); squash = 1 + 0.03 * sin(t * 12)
         case .needsApproval: bob = -6 * abs(sin(t * 5)); squash = 1 + 0.06 * sin(t * 10)
@@ -133,6 +152,7 @@ struct MascotView: View {
 
         drawAccessoryFront(&ctx, t: t)
         drawFace(&ctx, t: t)
+        drawMood(&ctx, t: t)
 
         // Utropstecken vid godkännande
         if state == .needsApproval {
@@ -147,7 +167,9 @@ struct MascotView: View {
     private func drawFace(_ ctx: inout GraphicsContext, t: Double) {
         let (l, r) = skin.eyes
         // Blink ca var 4:e sekund
-        let blink = (t.truncatingRemainder(dividingBy: 4.2)) < 0.12 && state != .done
+        let blinkEvery = mood == .sleepy ? 2.8 : 4.2
+        let blink = (t.truncatingRemainder(dividingBy: blinkEvery)) < (mood == .sleepy ? 0.3 : 0.12) && state != .done
+            || yawning(t)
         var look = CGSize.zero
         switch state {
         case .thinking: look = CGSize(width: 2.5, height: -3)
@@ -176,7 +198,7 @@ struct MascotView: View {
             ctx.fill(Path(ellipseIn: CGRect(x: c.x - w / 2, y: c.y - h / 2, width: w, height: h)), with: .color(skin.ink))
             ctx.fill(Path(ellipseIn: CGRect(x: c.x - w / 2 + 1.5, y: c.y - h / 2 + 1.2, width: 3, height: 3)), with: .color(.white))
             // Bo är sömnig: tunga ögonlock
-            if skin == .bo && state == .idle {
+            if state == .idle && (skin == .bo || mood == .sleepy) {
                 ctx.fill(Path(CGRect(x: c.x - w / 2 - 1, y: c.y - h / 2 - 1, width: w + 2, height: h / 2 + 0.5)),
                          with: .color(skin.body))
             }
@@ -201,12 +223,58 @@ struct MascotView: View {
             ctx.fill(Path(ellipseIn: CGRect(x: m.x - 4.5, y: m.y - h / 2, width: 9, height: h)), with: .color(skin.ink))
         } else if state == .needsApproval {
             ctx.fill(Path(ellipseIn: CGRect(x: m.x - 3, y: m.y - 3, width: 6, height: 6)), with: .color(skin.ink))
+        } else if yawning(t) {
+            ctx.fill(Path(ellipseIn: CGRect(x: m.x - 4, y: m.y - 4, width: 8, height: 10)), with: .color(skin.ink))
+        } else if mood == .stressed && calm {
+            // Snett, lite nervöst leende
+            var p = Path()
+            p.move(to: CGPoint(x: m.x - 5, y: m.y))
+            p.addQuadCurve(to: CGPoint(x: m.x + 5, y: m.y - 2), control: CGPoint(x: m.x + 1, y: m.y + 1.5))
+            ctx.stroke(p, with: .color(skin.ink), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
         } else {
-            let smile: CGFloat = state == .done ? 6 : 3.5
+            let smile: CGFloat = state == .done || (mood == .proud && calm) ? 6 : 3.5
             var p = Path()
             p.move(to: CGPoint(x: m.x - 5, y: m.y - 1))
             p.addQuadCurve(to: CGPoint(x: m.x + 5, y: m.y - 1), control: CGPoint(x: m.x, y: m.y - 1 + smile))
             ctx.stroke(p, with: .color(skin.ink), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+        }
+    }
+
+    private func drawMood(_ ctx: inout GraphicsContext, t: Double) {
+        switch mood {
+        case .sleepy where state == .idle:
+            // Små z som stiger uppåt till höger
+            for i in 0..<2 {
+                let phase = (t * 0.5 + Double(i) * 0.5).truncatingRemainder(dividingBy: 1)
+                let size = 9 + phase * 6
+                ctx.opacity = 1 - phase
+                ctx.draw(Text("z").font(.system(size: size, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.85)),
+                         at: CGPoint(x: 84 + phase * 8, y: 26 - phase * 18))
+            }
+            ctx.opacity = 1
+        case .stressed:
+            // Svettdroppe som glider ner längs sidan
+            let y = 34 + (t * 12).truncatingRemainder(dividingBy: 14)
+            var d = Path()
+            d.move(to: CGPoint(x: 80, y: y - 7))
+            d.addQuadCurve(to: CGPoint(x: 80, y: y + 4), control: CGPoint(x: 87, y: y + 2))
+            d.addQuadCurve(to: CGPoint(x: 80, y: y - 7), control: CGPoint(x: 73, y: y + 2))
+            ctx.fill(d, with: .color(Color(red: 0.55, green: 0.80, blue: 1.0).opacity(0.95)))
+        case .proud where calm:
+            // Gnistor som tänds och släcks runt huvudet
+            for (i, p) in [CGPoint(x: 18, y: 22), CGPoint(x: 84, y: 30), CGPoint(x: 74, y: 10)].enumerated() {
+                let a = max(0, sin(t * 3 + Double(i) * 2.1))
+                guard a > 0.2 else { continue }
+                let r = 2 + 3 * a
+                var s = Path()
+                s.move(to: CGPoint(x: p.x, y: p.y - r)); s.addLine(to: CGPoint(x: p.x, y: p.y + r))
+                s.move(to: CGPoint(x: p.x - r, y: p.y)); s.addLine(to: CGPoint(x: p.x + r, y: p.y))
+                ctx.stroke(s, with: .color(Color(red: 1, green: 0.85, blue: 0.4).opacity(a)),
+                           style: StrokeStyle(lineWidth: 1.8, lineCap: .round))
+            }
+        default:
+            break
         }
     }
 

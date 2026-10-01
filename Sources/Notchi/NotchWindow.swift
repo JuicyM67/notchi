@@ -111,7 +111,6 @@ struct NotchView: View {
     @ObservedObject var store: SessionStore
     @ObservedObject var voice: VoiceState
     let geometry: NotchGeometry
-    let skin: () -> Skin
 
     var body: some View {
         let expanded = store.expanded
@@ -148,7 +147,7 @@ struct NotchView: View {
     private func collapsedContent(label: String?) -> some View {
         HStack(spacing: 0) {
             // Vänster öra: maskoten
-            MascotView(skin: skin(), state: store.state, level: voice.level)
+            MascotView(skin: store.primarySkin, state: store.state, level: voice.level, mood: store.mood)
                 .frame(width: geometry.notchHeight - 2, height: geometry.notchHeight - 4)
                 .frame(width: geometry.ear)
             // Den fysiska notchen: här kan inget synas
@@ -218,7 +217,7 @@ struct NotchView: View {
     @ViewBuilder
     private var mainRow: some View {
         HStack(alignment: .top, spacing: 12) {
-            MascotView(skin: skin(), state: store.state, level: voice.level)
+            MascotView(skin: store.primarySkin, state: store.state, level: voice.level, mood: store.mood)
                 .frame(width: 60, height: 60)
                 .contentShape(Rectangle())
                 .onTapGesture { store.onPoke?() }
@@ -293,22 +292,34 @@ struct NotchView: View {
                 .font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
         } else {
             ForEach(sessions.prefix(3)) { s in
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Circle().fill(s.working ? Color(red: 0.231, green: 0.510, blue: 0.965) : Color.gray)
-                            .frame(width: 6, height: 6)
-                        Text(s.project).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
-                        Text(s.short).font(.system(size: 12)).foregroundStyle(.white.opacity(0.65))
-                        Spacer(minLength: 0)
-                        Text(s.updated, style: .relative)
-                            .font(.system(size: 10)).foregroundStyle(.white.opacity(0.4))
+                Button { store.onJump?(s) } label: {
+                    HStack(alignment: .top, spacing: 7) {
+                        // Varje session har sin egen karaktär, med sitt eget uttryck
+                        MascotView(skin: s.skin, state: store.state(for: s), mood: store.mood)
+                            .frame(width: 22, height: 22)
+                        VStack(alignment: .leading, spacing: 1) {
+                            HStack(spacing: 6) {
+                                Text(s.project).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                                Text(s.short).font(.system(size: 12)).foregroundStyle(.white.opacity(0.65))
+                                Spacer(minLength: 0)
+                                Text(s.updated, style: .relative)
+                                    .font(.system(size: 10)).foregroundStyle(.white.opacity(0.4))
+                                if s.appPath != nil {
+                                    Image(systemName: "arrow.up.forward.app")
+                                        .font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
+                                }
+                            }
+                            if s.working, !s.activity.isEmpty, s.activity != s.short {
+                                Text(s.activity).font(.system(size: 11, design: .monospaced))
+                                    .foregroundStyle(.white.opacity(0.55)).lineLimit(1)
+                            }
+                        }
                     }
-                    if s.working, !s.activity.isEmpty, s.activity != s.short {
-                        Text(s.activity).font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.55)).lineLimit(1)
-                            .padding(.leading, 12)
-                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .help(s.appPath.map { "Hoppa till \(((($0 as NSString).lastPathComponent) as NSString).deletingPathExtension)" } ?? "Öppna projektmappen")
+                .accessibilityLabel("\(s.skin.name) i \(s.project): \(s.short). Hoppa dit.")
             }
             if let last = sessions.first(where: { $0.lastMessage != nil }), let msg = last.lastMessage {
                 Divider().overlay(Color.white.opacity(0.12))
