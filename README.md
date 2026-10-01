@@ -40,6 +40,9 @@ Första gången frågar macOS om mikrofon och taligenkänning – svara ja.
 | Skicka tillbaka till terminalen | Klicka **Terminal** |
 | Prata | Håll **⌃⌥ Mellanslag**, prata, släpp |
 | Byta karaktär | ●-ikonen i menyraden → välj Pim, Oda, Bo eller Kix |
+| Höra läget | Klicka på maskoten eller notchen; klicka igen för att tysta |
+| Låsa öppen / fälla ihop | Nålen respektive ⌃-knappen uppe till höger i utfälld vy |
+| Se användning | Mätarna 5 tim och Vecka i utfälld vy, ringen runt statuspricken, eller fråga "hur mycket har jag kvar?" |
 
 Exempel på vad du kan säga:
 
@@ -148,6 +151,12 @@ Du (⌃⌥ Mellanslag) ─▶ Taligenkänning ─▶ Lokal tolk ─┬─▶ öp
 - "Hej Notchi"-väckningsord (kräver alltid-på-lyssning; kan göras lokalt med Apples taligenkänning).
 - Klicka på en session för att hoppa till rätt terminalflik.
 - Bygga egna genvägar i Genvägar-appen för allt du vill att Notchi ska kunna göra.
+
+## Uppdatera
+
+```bash
+cd /tmp && curl -sL https://github.com/JuicyM67/notchi/releases/download/latest/Notchi-macOS.zip -o n.zip && rm -rf Notchi && unzip -q n.zip && bash Notchi/install.sh
+```
 
 ## Avinstallera
 
