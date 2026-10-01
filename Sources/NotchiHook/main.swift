@@ -6,15 +6,52 @@ import Darwin
 // För PermissionRequest väntar den på svar (Tillåt/Neka) och skriver det till stdout.
 // Om appen inte är igång avslutar den tyst, så att Claude Code fungerar precis som vanligt.
 
+// Läge 2: --statusline. Claude Code kör statusraden ofta och skickar med användningen
+// (rate_limits). Vi vidarebefordrar den till Notchi och kör sedan din gamla statusrad, om du hade en.
+
+let isStatusLine = CommandLine.arguments.contains("--statusline")
 let input = FileHandle.standardInput.readDataToEndOfFile()
 guard !input.isEmpty,
-      let json = try? JSONSerialization.jsonObject(with: input) as? [String: Any] else { exit(0) }
+      var json = try? JSONSerialization.jsonObject(with: input) as? [String: Any] else { exit(0) }
+if isStatusLine { json["hook_event_name"] = "StatusLine" }
 let event = json["hook_event_name"] as? String ?? ""
 let waitForReply = event == "PermissionRequest"
 
+/// Kör din tidigare statusrad med samma indata, eller skriv en enkel egen
+func finishStatusLine() -> Never {
+    let prevFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".notchi/prev-statusline.txt")
+    if let prev = try? String(contentsOf: prevFile, encoding: .utf8),
+       !prev.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        p.arguments = ["-c", prev]
+        let inPipe = Pipe(), outPipe = Pipe()
+        p.standardInput = inPipe; p.standardOutput = outPipe; p.standardError = FileHandle.nullDevice
+        if (try? p.run()) != nil {
+            inPipe.fileHandleForWriting.write(input)
+            try? inPipe.fileHandleForWriting.close()
+            let out = outPipe.fileHandleForReading.readDataToEndOfFile()
+            p.waitUntilExit()
+            FileHandle.standardOutput.write(out)
+            exit(0)
+        }
+    }
+    // Ingen tidigare statusrad: visa modell, kontext och 5-timmarsanvändning
+    let model = (json["model"] as? [String: Any])?["display_name"] as? String ?? "Claude"
+    var parts = [model]
+    if let ctx = ((json["context_window"] as? [String: Any])?["used_percentage"] as? NSNumber)?.intValue {
+        parts.append("\(ctx) % kontext")
+    }
+    if let five = (((json["rate_limits"] as? [String: Any])?["five_hour"] as? [String: Any])?["used_percentage"] as? NSNumber)?.doubleValue {
+        parts.append("5 tim \(Int(five.rounded())) %")
+    }
+    print(parts.joined(separator: " · "))
+    exit(0)
+}
+
 let path = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".notchi/notchi.sock").path
 let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-guard fd >= 0 else { exit(0) }
+guard fd >= 0 else { if isStatusLine { finishStatusLine() }; exit(0) }
 
 var addr = sockaddr_un()
 addr.sun_family = sa_family_t(AF_UNIX)
@@ -27,14 +64,21 @@ let connected = withUnsafePointer(to: &addr) {
         connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
     }
 }
-guard connected == 0 else { exit(0) }   // appen kör inte: gör ingenting
+guard connected == 0 else {               // appen kör inte: gör ingenting
+    if isStatusLine { finishStatusLine() }
+    exit(0)
+}
 
 // Skicka händelsen på en rad (JSONSerialization skriver utan radbrytningar)
 var payload = (try? JSONSerialization.data(withJSONObject: json)) ?? input
 payload.append(10)
 _ = payload.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
 
-guard waitForReply else { close(fd); exit(0) }
+guard waitForReply else {
+    close(fd)
+    if isStatusLine { finishStatusLine() }
+    exit(0)
+}
 
 // Vänta på beslut (strax under Claude Codes standardtimeout på 600 s)
 var tv = timeval(tv_sec: 590, tv_usec: 0)

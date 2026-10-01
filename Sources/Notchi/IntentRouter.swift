@@ -10,6 +10,7 @@ enum LocalIntent {
     case findFile(String)
     case runShortcut(String)
     case status
+    case usage
     case stopTalking
     case askClaude(String)        // allt annat
 }
@@ -25,6 +26,7 @@ enum IntentRouter {
             if match(t, #"^(nej|neka|stopp|stoppa|avbryt|nix|vänta)( det| tack)?$"#) { return .deny }
         }
         if match(t, #"^(tyst|sluta prata|shh+|var tyst)"#) { return .stopTalking }
+        if match(t, #"(användning|hur mycket (har jag )?(kvar|använt)|gräns|usage)"#) { return .usage }
         if match(t, #"(vad gör (claude|du)|hur går det|status|vad händer)"#) { return .status }
 
         if let x = capture(t, #"^(?:öppna|visa) (?:mappen|katalogen) (.+)$"#) { return .openFolder(x) }

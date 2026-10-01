@@ -11,7 +11,7 @@ function writeText(path, text) {
 }
 
 function run(argv) {
-  const [mode, settingsPath, hookPath] = argv;
+  const [mode, settingsPath, hookPath, prevPath] = argv;
   const raw = readText(settingsPath);
   const settings = raw && raw.trim() ? JSON.parse(raw) : {};
   settings.hooks = settings.hooks || {};
@@ -41,6 +41,21 @@ function run(argv) {
     if (groups.length) settings.hooks[ev] = groups; else delete settings.hooks[ev];
   }
   if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
+
+  // Statusraden: där skickar Claude Code din användning (5 tim / vecka).
+  // En statusrad du redan hade sparas och körs vidare av Notchi, så den syns precis som förut.
+  const sl = settings.statusLine;
+  const isOurs = sl && typeof sl.command === 'string' && sl.command.includes(MARK);
+  if (mode === 'install') {
+    if (sl && !isOurs && prevPath) {
+      writeText(prevPath, sl.type === 'command' && sl.command ? sl.command : '');
+    }
+    settings.statusLine = { type: 'command', command: hookPath + ' --statusline', padding: 0 };
+  } else if (isOurs) {
+    const prev = prevPath ? readText(prevPath) : null;
+    if (prev && prev.trim()) settings.statusLine = { type: 'command', command: prev.trim() };
+    else delete settings.statusLine;
+  }
 
   writeText(settingsPath, JSON.stringify(settings, null, 2) + '\n');
   return mode === 'install' ? 'Hooks installerade.' : 'Hooks borttagna.';

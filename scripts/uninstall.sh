@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 SETTINGS="$HOME/.claude/settings.json"
 if [ -f "$SETTINGS" ]; then
   cp "$SETTINGS" "$SETTINGS.notchi-backup-$(date +%Y%m%d%H%M%S)"
-  /usr/bin/osascript -l JavaScript merge-hooks.js uninstall "$SETTINGS" ""
+  /usr/bin/osascript -l JavaScript merge-hooks.js uninstall "$SETTINGS" "" "$HOME/.notchi/prev-statusline.txt"
 fi
 pkill -x Notchi 2>/dev/null || true
 rm -rf "$HOME/Applications/Notchi.app"

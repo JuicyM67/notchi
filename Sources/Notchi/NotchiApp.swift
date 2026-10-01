@@ -277,6 +277,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             speaker.stop(); store.speaking = false; store.bubble = nil
         case .status:
             say(store.spokenStatus())
+        case .usage:
+            say(store.usageSentence() ?? "Jag ser ingen användning än. Den dyker upp efter första svaret i en Claude Code-session.")
         case .openFolder(let name):
             say(await Task.detached { LocalTools.openFolder(name) }.value)
         case .launchApp(let name):

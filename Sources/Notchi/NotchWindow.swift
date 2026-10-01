@@ -34,29 +34,40 @@ struct NotchGeometry: Equatable {
         return NotchGeometry(screenFrame: screen.frame, notchWidth: width, notchHeight: height)
     }
 
-    /// "Örat" på varje sida om den fysiska notchen
-    var ear: CGFloat { notchHeight + 8 }
-    /// Extra bredd per sida när en statustext visas
-    static let labelRoom: CGFloat = 92
+    /// "Örat" på varje sida om den fysiska notchen (här bor maskoten till vänster)
+    var ear: CGFloat { notchHeight + 4 }
+    /// Extra bredd till HÖGER när en statustext visas (bara på den sidan, så notchen hålls smal)
+    static let labelRoom: CGFloat = 74
+
+    var expandedSize: NSSize {
+        NSSize(width: max(notchWidth + 2 * ear + 96, 380), height: notchHeight + 184)
+    }
 
     /// Den svarta formens storlek i olika lägen
     func shapeSize(expanded: Bool, showsLabel: Bool) -> NSSize {
-        if expanded { return NSSize(width: max(notchWidth + 2 * ear + 2 * Self.labelRoom, 460), height: notchHeight + 196) }
-        let extra = showsLabel ? Self.labelRoom : 0
-        return NSSize(width: notchWidth + 2 * (ear + extra), height: notchHeight)
+        if expanded { return expandedSize }
+        return NSSize(width: notchWidth + 2 * ear + (showsLabel ? Self.labelRoom : 0), height: notchHeight)
     }
 
-    /// Fönstret har ALLTID samma storlek (den största formen). Det stoppar fladdret som uppstår
+    /// Hur långt formen förskjuts åt höger från mitten (statustexten växer bara åt höger)
+    func shapeOffset(expanded: Bool, showsLabel: Bool) -> CGFloat {
+        (!expanded && showsLabel) ? Self.labelRoom / 2 : 0
+    }
+
+    /// Fönstret har ALLTID samma storlek. Det stoppar fladdret som uppstår
     /// när ett fönster byter storlek under muspekaren.
     var canvas: NSRect {
-        let s = shapeSize(expanded: true, showsLabel: true)
-        return NSRect(x: screenFrame.midX - s.width / 2, y: screenFrame.maxY - s.height, width: s.width, height: s.height)
+        let collapsedHalf = notchWidth / 2 + ear + Self.labelRoom
+        let w = max(expandedSize.width, 2 * collapsedHalf)
+        let h = expandedSize.height
+        return NSRect(x: screenFrame.midX - w / 2, y: screenFrame.maxY - h, width: w, height: h)
     }
 
     /// Formens yta i skärmkoordinater (för att avgöra om musen är över den)
     func shapeRect(expanded: Bool, showsLabel: Bool) -> NSRect {
         let s = shapeSize(expanded: expanded, showsLabel: showsLabel)
-        return NSRect(x: screenFrame.midX - s.width / 2, y: screenFrame.maxY - s.height, width: s.width, height: s.height)
+        let cx = screenFrame.midX + shapeOffset(expanded: expanded, showsLabel: showsLabel)
+        return NSRect(x: cx - s.width / 2, y: screenFrame.maxY - s.height, width: s.width, height: s.height)
     }
 }
 
@@ -95,8 +106,8 @@ struct NotchView: View {
                 if expanded {
                     expandedContent
                         .padding(.top, geometry.notchHeight + 8)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 14)
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 12)
                         .transition(.opacity)
                 } else {
                     collapsedContent(label: label)
@@ -105,6 +116,7 @@ struct NotchView: View {
             }
             .frame(width: size.width, height: size.height)
             .contentShape(Rectangle())
+            .offset(x: geometry.shapeOffset(expanded: expanded, showsLabel: label != nil))
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -123,14 +135,14 @@ struct NotchView: View {
             HStack(spacing: 6) {
                 if let label {
                     Text(label)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(statusColor)
                         .lineLimit(1)
                         .fixedSize()
                 }
                 statusDot
             }
-            .padding(.trailing, 12)
+            .padding(.trailing, 10)
         }
         .frame(height: geometry.notchHeight)
     }
@@ -153,16 +165,36 @@ struct NotchView: View {
         case .listening: .pink
         default: .gray.opacity(0.5)
         }
-        return Circle().fill(color).frame(width: 7, height: 7)
+        return ZStack {
+            if let pct = store.usage.fiveHour {
+                Circle().stroke(Color.white.opacity(0.15), lineWidth: 2)
+                Circle().trim(from: 0, to: min(1, pct / 100))
+                    .stroke(UsageMeter.color(pct), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            Circle().fill(color).frame(width: 7, height: 7)
+        }
+        .frame(width: 15, height: 15)
+        .help(store.usage.fiveHour.map { "\(Int($0.rounded())) % av 5-timmarsgränsen använd" } ?? "")
     }
 
     // MARK: Utfälld
 
     @ViewBuilder
     private var expandedContent: some View {
-        HStack(alignment: .top, spacing: 14) {
+        VStack(spacing: 10) {
+            mainRow
+            if store.usage.hasData {
+                UsageFooter(usage: store.usage)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var mainRow: some View {
+        HStack(alignment: .top, spacing: 12) {
             MascotView(skin: skin(), state: store.state, level: voice.level)
-                .frame(width: 72, height: 72)
+                .frame(width: 60, height: 60)
                 .contentShape(Rectangle())
                 .onTapGesture { store.onPoke?() }
                 .help("Klicka så berättar jag vad som händer")
@@ -264,6 +296,63 @@ struct NotchView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Användning (5 timmar / vecka)
+
+enum UsageMeter {
+    /// Pim-mint upp till 70 %, Kix-gul till 90 %, Oda-korall över
+    static func color(_ pct: Double) -> Color {
+        if pct >= 90 { return Color(red: 1.00, green: 0.48, blue: 0.42) }
+        if pct >= 70 { return Color(red: 1.00, green: 0.78, blue: 0.24) }
+        return Color(red: 0.37, green: 0.84, blue: 0.66)
+    }
+
+    static func resetText(_ date: Date?) -> String {
+        guard let date else { return "" }
+        let secs = date.timeIntervalSinceNow
+        if secs <= 0 { return "nollställs nu" }
+        if secs < 3600 { return "om \(Int(secs / 60)) min" }
+        if secs < 24 * 3600 {
+            let f = DateFormatter(); f.locale = Locale(identifier: "sv_SE"); f.dateFormat = "HH:mm"
+            return "kl \(f.string(from: date))"
+        }
+        let f = DateFormatter(); f.locale = Locale(identifier: "sv_SE"); f.dateFormat = "EEE HH:mm"
+        return f.string(from: date)
+    }
+}
+
+struct UsageFooter: View {
+    let usage: Usage
+    var body: some View {
+        HStack(spacing: 14) {
+            if let p = usage.fiveHour { bar("5 tim", p, usage.fiveHourReset) }
+            if let p = usage.sevenDay { bar("Vecka", p, usage.sevenDayReset) }
+        }
+        .padding(.horizontal, 2)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func bar(_ title: String, _ pct: Double, _ reset: Date?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.white.opacity(0.55))
+                Text("\(Int(pct.rounded())) %").font(.system(size: 10, weight: .bold)).foregroundStyle(.white.opacity(0.9))
+                    .monospacedDigit()
+                Spacer(minLength: 0)
+                Text(UsageMeter.resetText(reset)).font(.system(size: 10)).foregroundStyle(.white.opacity(0.4))
+            }
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.1))
+                    Capsule().fill(UsageMeter.color(pct))
+                        .frame(width: max(5, g.size.width * min(1, pct / 100)))
+                }
+            }
+            .frame(height: 5)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

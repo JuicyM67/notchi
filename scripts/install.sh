@@ -32,7 +32,7 @@ echo "▸ Kopplar in hooks i ~/.claude/settings.json (säkerhetskopia sparas)…
 mkdir -p "$HOME/.claude"
 SETTINGS="$HOME/.claude/settings.json"
 [ -f "$SETTINGS" ] && cp "$SETTINGS" "$SETTINGS.notchi-backup-$(date +%Y%m%d%H%M%S)"
-/usr/bin/osascript -l JavaScript "$HERE/merge-hooks.js" install "$SETTINGS" "$HOME/.notchi/bin/notchi-hook"
+/usr/bin/osascript -l JavaScript "$HERE/merge-hooks.js" install "$SETTINGS" "$HOME/.notchi/bin/notchi-hook" "$HOME/.notchi/prev-statusline.txt"
 
 echo "▸ Startar Notchi…"
 open "$HOME/Applications/Notchi.app"

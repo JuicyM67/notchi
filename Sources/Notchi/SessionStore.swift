@@ -18,6 +18,32 @@ struct SessionInfo: Identifiable {
     var updated: Date
 }
 
+/// Claude-användning från Claude Codes statusrad (bara Pro/Max)
+struct Usage: Codable, Equatable {
+    var fiveHour: Double? = nil
+    var fiveHourReset: Date? = nil
+    var sevenDay: Double? = nil
+    var sevenDayReset: Date? = nil
+    var updated: Date? = nil
+
+    var hasData: Bool { fiveHour != nil || sevenDay != nil }
+
+    static let file = Config.dir.appendingPathComponent("usage.json")
+    static func load() -> Usage {
+        guard let d = try? Data(contentsOf: file), var u = try? JSONDecoder().decode(Usage.self, from: d) else { return Usage() }
+        u.dropExpired()
+        return u
+    }
+    func save() { if let d = try? JSONEncoder().encode(self) { try? d.write(to: Usage.file, options: .atomic) } }
+
+    /// Ett fönster vars nollställning passerat gäller inte längre
+    mutating func dropExpired() {
+        let now = Date()
+        if let r = fiveHourReset, r < now { fiveHour = 0; fiveHourReset = nil }
+        if let r = sevenDayReset, r < now { sevenDay = 0; sevenDayReset = nil }
+    }
+}
+
 struct PendingPermission: Identifiable {
     let id = UUID()
     let event: HookEvent
@@ -34,6 +60,7 @@ final class SessionStore: ObservableObject {
     @Published var thinkingLocally = false        // Notchi själv väntar på Claude API
     @Published var justFinished: Date? = nil
     @Published var hovering = false
+    @Published var usage = Usage.load()
     @Published var pinned = false                 // låst öppen (klicka på nålen)
     @Published var dismissed = false              // du stängde den: öppna inte av sig själv förrän något nytt händer
     /// Klick på maskoten
@@ -80,8 +107,24 @@ final class SessionStore: ObservableObject {
         return nil
     }
 
+    private func updateUsage(from j: [String: Any], session: String) {
+        guard let rl = j["rate_limits"] as? [String: Any] else { return }
+        var u = usage
+        func read(_ key: String) -> (Double?, Date?) {
+            guard let w = rl[key] as? [String: Any] else { return (nil, nil) }
+            let pct = (w["used_percentage"] as? NSNumber)?.doubleValue
+            let reset = (w["resets_at"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) }
+            return (pct, reset)
+        }
+        let (f, fr) = read("five_hour"); if let f { u.fiveHour = f; u.fiveHourReset = fr }
+        let (s, sr) = read("seven_day"); if let s { u.sevenDay = s; u.sevenDayReset = sr }
+        u.updated = Date()
+        if u != usage { usage = u; u.save() }
+    }
+
     /// Sessioner som inte hörts av på länge räknas inte längre som aktiva
     func expireStale() {
+        var u = usage; u.dropExpired(); if u != usage { usage = u }
         let now = Date()
         for (id, s) in sessions where s.working && now.timeIntervalSince(s.updated) > 15 * 60 {
             sessions[id]?.working = false
@@ -96,6 +139,7 @@ final class SessionStore: ObservableObject {
     // MARK: - Händelser från Claude Code
 
     func handle(_ e: HookEvent, reply: HookReply?) {
+        if e.name == "StatusLine" { updateUsage(from: e.raw, session: e.sessionId); return }
         var s = sessions[e.sessionId] ?? SessionInfo(id: e.sessionId, project: e.projectName, cwd: e.cwd,
                                                       activity: "", working: false, updated: Date())
         s.updated = Date()
@@ -193,10 +237,25 @@ final class SessionStore: ObservableObject {
         }
         let others = sorted.filter { $0.working }.count - 2
         if others > 0 { parts.append("Och \(others) till jobbar.") }
+        if let u = usageSentence(onlyIfHigh: !parts.isEmpty) { parts.append(u) }
         if parts.isEmpty { return ["Det är lugnt just nu. Inga sessioner är igång.",
                                    "Allt är tyst. Claude vilar.",
                                    "Inget på gång just nu."].randomElement()! }
         return parts.joined(separator: " ")
+    }
+
+    /// "Du har använt 42 procent av femtimmarsgränsen …"
+    func usageSentence(onlyIfHigh: Bool = false) -> String? {
+        guard let f = usage.fiveHour else { return nil }
+        if onlyIfHigh && f < 70 && (usage.sevenDay ?? 0) < 80 { return nil }
+        var s = "Du har använt \(Int(f.rounded())) procent av femtimmarsgränsen"
+        if let r = usage.fiveHourReset {
+            let mins = Int(r.timeIntervalSinceNow / 60)
+            if mins > 0 { s += mins < 60 ? ", den nollställs om \(mins) minuter" : ", den nollställs om \(mins / 60) timmar och \(mins % 60) minuter" }
+        }
+        s += "."
+        if let w = usage.sevenDay { s += " Veckan ligger på \(Int(w.rounded())) procent." }
+        return s
     }
 
     func showBubble(_ text: String, seconds: Double = 8) {
