@@ -4,3 +4,5 @@ dist/
 .DS_Store
 *.xcodeproj/xcuserdata/
 .swiftpm/
+windows/src-tauri/target/
+windows/src-tauri/gen/

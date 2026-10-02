@@ -1,0 +1,64 @@
+name: Bygg Tamanotchi för Windows
+
+on:
+  push:
+    branches: [main]
+    paths: ["windows/**", ".github/workflows/build-windows.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: windows/src-tauri
+
+      - name: Bygg appen och installationsprogrammet
+        working-directory: windows
+        run: npx --yes @tauri-apps/cli@2 build --ci
+
+      - name: Testa hooken
+        working-directory: windows
+        shell: pwsh
+        run: ./scripts/test-hook.ps1
+
+      - name: Döp om installationsprogrammet
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp windows/src-tauri/target/release/bundle/nsis/*-setup.exe dist/Tamanotchi-Setup.exe
+          ls -la dist
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: Tamanotchi-Windows
+          path: dist/Tamanotchi-Setup.exe
+
+  publish:
+    needs: windows
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Samma grupp som Mac-bygget: bara ett bygge i taget rör releasen "latest"
+    concurrency:
+      group: tamanotchi-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: Tamanotchi-Windows
+          path: dist
+      - name: Lägg till i "Senaste bygget"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload latest dist/Tamanotchi-Setup.exe --clobber
+          sleep 5
+          curl -fsSL -o /dev/null "https://github.com/${{ github.repository }}/releases/download/latest/Tamanotchi-Setup.exe"
+          echo "Nedladdningen fungerar."

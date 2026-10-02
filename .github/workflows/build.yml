@@ -5,7 +5,7 @@ on:
     branches: [main]
     tags: ["v*"]
     # Ändringar i bara dokumentation eller varumärke bygger inte om appen
-    paths-ignore: ["**.md", "brand/**"]
+    paths-ignore: ["**.md", "brand/**", "windows/**", ".github/workflows/build-windows.yml"]
   pull_request:
   workflow_dispatch:
 

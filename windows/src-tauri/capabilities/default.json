@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Ön får lyssna på händelser och anropa appens egna kommandon",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
