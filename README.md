@@ -21,6 +21,21 @@ Skriptet lägger appen i `~/Applications`, installerar hooken i `~/.tamanotchi/b
 och kopplar in den i `~/.claude/settings.json` (en säkerhetskopia sparas bredvid).
 Dina befintliga hooks lämnas orörda.
 
+## Windows
+
+1. Ladda ner `Tamanotchi-Setup.exe` från *Senaste bygget* under **Releases**.
+2. Kör den. Windows varnar för okända appar: klicka **Mer info → Kör ändå**.
+3. Klart. Tamanotchi kopplar själv in sig i Claude Code (`%USERPROFILE%\.claude\settings.json`,
+   en säkerhetskopia sparas bredvid). Starta en ny Claude Code-session i VS Code.
+
+Tamanotchi är en svävande ö högst upp på skärmen (eller nere vid klockan). Den har samma
+karaktärer, stilar, godkännanden, användningsmätare och ljud som på Mac. Klicka på maskoten så
+berättar den läget. Inställningarna finns under kugghjulet eller ikonen i aktivitetsfältet.
+Vill du ha svensk röst: *Inställningar → Tid och språk → Tal → Lägg till röster → Svenska*.
+Avinstallerar du tas hooks och autostart bort automatiskt.
+
+Röstkommandon och datorstyrning finns ännu bara på Mac.
+
 ### Bygga själv
 
 Har du Command Line Tools (`xcode-select --install`) kan du bygga från källkoden:
